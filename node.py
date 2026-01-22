@@ -18,7 +18,7 @@ class Node:
             'host': self.me['ip'],
             'user': 'root',
             'password': 'root',
-            'database': 'ddb',
+            'database': 'bd-dist',
             'port': self.me['db_port']
         }
         

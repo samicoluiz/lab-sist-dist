@@ -13,24 +13,24 @@ Desenvolver um middleware para disponibilizar um banco de dados distribuídos ba
 - Usar o SGBD MySQL;
 - A comunicação entre os nós do banco de dados distribuídos deverá ocorrer através de sockets;
 - Desenvolver protocolo para troca de informações entre as diversas máquinas;
-- Possibilidade de configurar os nós do DDB através de IPs de cada máquina;
-- O DDB deverá seguir as premissas de uma DDM homogêneo autônomo;
-- Todas as alterações efetuadas em um dos nós do DDB deverá ser replicada em todos os outros nós da rede;
+- Possibilidade de configurar os nós do BD-dist através de IPs de cada máquina;
+- O BD-dist deverá seguir as premissas de uma DDM homogêneo autônomo;
+- Todas as alterações efetuadas em um dos nós do BD-dist deverá ser replicada em todos os outros nós da rede;
 - Preferencialmente poderá ter um coordenador. Porém, caso o coordenador falhe, deverá ter algum algoritmo para a eleição de um novo coordenador;
 - O tipo de comunicação deverá ser determinado: broadcast, unicast, multicast;
 - Garantir que as operações sigam as propriedades ACID;
-- Todos os nós do DDB deverão informar periodicamente que estão ativos no DDB;
+- Todos os nós do BD-dist deverão informar periodicamente que estão ativos no BD-dist;
 - Usar um mecanismo do tipo checksum para verificar a integridade dos dados recebidos;
-- Garantir que não haja sobrecarga de nós no DDB, ou seja, que as requisições possam ser distribuídas entre os nós da rede;
+- Garantir que não haja sobrecarga de nós no BD-dist, ou seja, que as requisições possam ser distribuídas entre os nós da rede;
 - Cada nó deverá infomar as queries que foram requisitadas para ele e informar o conteúdo que será transmitido;
-- Para acessar o DDB deverá ser criada uma aplicação com interface simples para executar queries. Cada retorno de queries deverá informar o resultado e o nó do DDB em que foi executada. 
+- Para acessar o BD-dist deverá ser criada uma aplicação com interface simples para executar queries. Cada retorno de queries deverá informar o resultado e o nó do BD-dist em que foi executada. 
 
 ## resposta 
 
 O middleware foi desenvolvido em **Python**, utilizando **Sockets** para comunicação e **MySQL** como SGBD, orquestrado via Docker. Abaixo, detalho como cada requisito foi atendido:
 
 1.  **Linguagem e SGBD**: Implementado em Python (`node.py`), utilizando `mysql-connector` para gerenciar 3 instâncias de MySQL 8.0 rodando em containers Docker distintos.
-2.  **Arquitetura Distribuída**: O sistema roda em 3 nós (simulados em portas diferentes: 5000, 5001, 5002), configuráveis via arquivo `config.json` (IP/Porta), caracterizando um DDB Homogêneo Autônomo.
+2.  **Arquitetura Distribuída**: O sistema roda em 3 nós (simulados em portas diferentes: 5000, 5001, 5002), configuráveis via arquivo `config.json` (IP/Porta), caracterizando um BD-dist Homogêneo Autônomo.
 3.  **Comunicação e Protocolo**: A troca de mensagens ocorre via Sockets TCP com payloads em JSON. Tipos de mensagens incluem `CLIENT_QUERY`, `REPLICATE`, `HEARTBEAT` e `ELECTION`.
 4.  **Replicação e Integridade**:
     *   Toda operação de escrita (INSERT/UPDATE/DELETE) recebida por um nó é executada localmente e imediatamente difundida (**Broadcast**) para os demais nós.

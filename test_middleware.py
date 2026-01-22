@@ -10,9 +10,9 @@ import sys
 # Add the parent directory to sys.path to import node
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from distributed_db.node import Node
+from node import Node
 
-class TestDistributedDB(unittest.TestCase):
+class TestDistDB(unittest.TestCase):
     def setUp(self):
         self.nodes = []
         self.mock_conns = []

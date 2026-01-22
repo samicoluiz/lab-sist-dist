@@ -51,7 +51,7 @@ O arquivo `config.json` contém os IPs e portas dos nós do middleware e dos ban
    ```
 
 4. **Executar a Aplicação Cliente**:
-   Use o cliente para enviar queries ao DDB:
+   Use o cliente para enviar queries ao bd-dist:
    ```bash
    python client.py
    ```

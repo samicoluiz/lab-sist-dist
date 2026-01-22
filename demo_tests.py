@@ -4,7 +4,7 @@ Script de Demonstração do Middleware de Banco de Dados Distribuído
 Execute com: python demo_tests.py
 
 Este script executa uma sequência de testes para demonstrar
-todas as funcionalidades do DDB.
+todas as funcionalidades do bd-dist.
 """
 
 import socket

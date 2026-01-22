@@ -4,7 +4,7 @@ services:
     container_name: db1
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: ddb
+      MYSQL_DATABASE: bd-dist
     ports:
       - "3306:3306"
   db2:
@@ -12,7 +12,7 @@ services:
     container_name: db2
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: ddb
+      MYSQL_DATABASE: bd-dist
     ports:
       - "3307:3306"
   db3:
@@ -20,6 +20,6 @@ services:
     container_name: db3
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: ddb
+      MYSQL_DATABASE: bd-dist
     ports:
       - "3308:3306"

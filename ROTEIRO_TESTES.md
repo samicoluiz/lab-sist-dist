@@ -10,7 +10,7 @@ Este documento descreve os testes para demonstrar o funcionamento do middleware 
 - [ ] Python 3.8+ instalado
 - [ ] MySQL 8.0 rodando
 - [ ] Usuário MySQL: `root` / Senha: `root`
-- [ ] Database `ddb` criado
+- [ ] Database `bd-dist` criado
 - [ ] Tabela `users` inicializada (`python init_db.py`)
 - [ ] Arquivo `config.json` com IPs reais
 - [ ] Porta 5000 e 3306 liberadas no firewall
@@ -21,7 +21,7 @@ Este documento descreve os testes para demonstrar o funcionamento do middleware 
 pip install mysql-connector-python
 
 # Criar database (no MySQL)
-CREATE DATABASE IF NOT EXISTS ddb;
+CREATE DATABASE IF NOT EXISTS bd-dist;
 
 # Inicializar tabela
 python init_db.py

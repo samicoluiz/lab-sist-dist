@@ -11,7 +11,7 @@ def init():
                 host=n['ip'],
                 user='root',
                 password='root',
-                database='ddb',
+                database='bd-dist',
                 port=n['db_port']
             )
             cursor = conn.cursor()
