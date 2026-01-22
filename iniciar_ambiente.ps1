@@ -25,17 +25,19 @@ function Check-Command {
 
 function Wait-ForDb {
     Param (
-        [string]$Host,
+        [string]$DbHost,
         [int]$Port
     )
-    Log-Message "Aguardando o banco de dados MySQL em ${Host}:${Port} ficar disponível..."
+    Log-Message "Aguardando o banco de dados MySQL em ${DbHost}:${Port} ficar disponível..."
     $timeout = 60
     while ($timeout -gt 0) {
         try {
-            $socket = New-Object System.Net.Sockets.TcpClient($Host, $Port)
+            $socket = New-Object System.Net.Sockets.TcpClient($DbHost, $Port)
             if ($socket.Connected) {
                 $socket.Close()
-                Log-Message "O banco de dados MySQL em ${Host}:${Port} está disponível."
+                Log-Message "Porta ${Port} aberta. Aguardando 10 segundos para inicialização completa do MySQL..."
+                Start-Sleep -Seconds 10
+                Log-Message "O banco de dados MySQL em ${DbHost}:${Port} deve estar pronto."
                 return $true
             }
         } catch {
@@ -44,7 +46,7 @@ function Wait-ForDb {
         Start-Sleep -Seconds 1
         $timeout--
     }
-    Log-Message "Erro: O banco de dados MySQL em ${Host}:${Port} não respondeu após 60 segundos."
+    Log-Message "Erro: O banco de dados MySQL em ${DbHost}:${Port} não respondeu após 60 segundos."
     return $false
 }
 
