@@ -60,11 +60,11 @@ class Node:
             try:
                 conn = mysql.connector.connect(**self.db_config)
                 if conn.is_connected():
-                    print(f"[Node {self.node_id}] Connected to MySQL at port {self.me['db_port']}")
+                    print(f"[Nó {self.node_id}] Conectado ao MySQL na porta {self.me['db_port']}")
                     conn.autocommit = True
                     return conn
             except Error as e:
-                print(f"[Node {self.node_id}] MySQL Connection Error: {e}. Retrying...")
+                print(f"[Nó {self.node_id}] Erro de Conexão MySQL: {e}. Retentando...")
                 time.sleep(5)
         return None
 
@@ -90,7 +90,7 @@ class Node:
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind((self.me['ip'], self.me['port']))
         self.server_socket.listen(5)
-        print(f"[Node {self.node_id}] Listening on {self.me['ip']}:{self.me['port']}")
+        print(f"[Nó {self.node_id}] Escutando em {self.me['ip']}:{self.me['port']}")
         
         self.server_socket.settimeout(1.0)
         while self.is_running:
@@ -101,7 +101,7 @@ class Node:
                 continue
             except Exception as e:
                 if self.is_running:
-                    print(f"[Node {self.node_id}] Server error: {e}")
+                    print(f"[Nó {self.node_id}] Erro no servidor: {e}")
 
     def stop(self):
         self.is_running = False
@@ -109,7 +109,7 @@ class Node:
             self.server_socket.close()
         if self.db_conn:
             self.db_conn.close()
-        print(f"[Node {self.node_id}] Stopped.")
+        print(f"[Nó {self.node_id}] Parado.")
 
     def handle_client(self, conn):
         with conn:
@@ -136,7 +136,7 @@ class Node:
         elif m_type == 'COORDINATOR':
             with self.lock:
                 self.coordinator_id = msg['id']
-                print(f"[Node {self.node_id}] New Coordinator: {self.coordinator_id}")
+                print(f"[Nó {self.node_id}] Novo Coordenador: {self.coordinator_id}")
                 
         elif m_type == 'REPLICATE':
             self.execute_replicated_query(msg)
@@ -154,20 +154,20 @@ class Node:
                 dead_nodes = [nid for nid, last_seen in self.alive_nodes.items() 
                               if now - last_seen > 10 and nid != self.node_id]
                 for nid in dead_nodes:
-                    print(f"[Node {self.node_id}] Node {nid} is down")
+                    print(f"[Nó {self.node_id}] Nó {nid} está fora do ar")
                     del self.alive_nodes[nid]
                     if self.coordinator_id == nid:
                         self.coordinator_id = None
                         self.start_election()
 
     def start_election(self):
-        print(f"[Node {self.node_id}] Starting election...")
+        print(f"[Nó {self.node_id}] Iniciando eleição...")
         higher_nodes = [n for n in self.other_nodes if n['id'] > self.node_id]
         if not higher_nodes:
             # I am the highest, I am the coordinator
             self.coordinator_id = self.node_id
             self.broadcast({'type': 'COORDINATOR', 'id': self.node_id})
-            print(f"[Node {self.node_id}] I am the coordinator")
+            print(f"[Nó {self.node_id}] Eu sou o coordenador")
         else:
             for n in higher_nodes:
                 self.send_msg(n, {'type': 'ELECTION', 'id': self.node_id})
@@ -179,7 +179,7 @@ class Node:
             # and I haven't received a 'COORDINATOR' message from someone bigger,
             # it means the bigger nodes are dead. I take over.
             if self.coordinator_id is None:
-                print(f"[Node {self.node_id}] No higher node responded. I am taking over!")
+                print(f"[Nó {self.node_id}] Nenhum nó superior respondeu. Eu estou assumindo!")
                 self.coordinator_id = self.node_id
                 self.broadcast({'type': 'COORDINATOR', 'id': self.node_id})
 
@@ -188,7 +188,7 @@ class Node:
         is_write = any(keyword in sql.upper() for keyword in ["INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER"])
         
         checksum = self.calculate_checksum(sql)
-        print(f"[Node {self.node_id}] RECEIVED QUERY: {sql}")
+        print(f"[Nó {self.node_id}] QUERY RECEBIDA: {sql}")
         
         try:
             cursor = self.db_conn.cursor(dictionary=True)
@@ -197,23 +197,23 @@ class Node:
             result = None
             if not is_write:
                 result = cursor.fetchall()
-                print(f"[Node {self.node_id}] READ operation executed locally. Rows returned: {len(result)}")
+                print(f"[Nó {self.node_id}] Operação de LEITURA executada localmente. Linhas retornadas: {len(result)}")
             
             if is_write:
                 # Replicate
-                print(f"[Node {self.node_id}] WRITE operation. Transmitting content for replication...")
-                print(f"[Node {self.node_id}] Checksum: {checksum}")
+                print(f"[Nó {self.node_id}] Operação de ESCRITA. Transmitindo conteúdo para replicação...")
+                print(f"[Nó {self.node_id}] Checksum: {checksum}")
                 self.broadcast({
                     'type': 'REPLICATE',
                     'sql': sql,
                     'checksum': checksum,
                     'origin': self.node_id
                 })
-                print(f"[Node {self.node_id}] Replication broadcast finished.")
+                print(f"[Nó {self.node_id}] Broadcast de replicação finalizado.")
             
             return {"status": "success", "node": self.node_id, "data": result}
         except Error as e:
-            print(f"[Node {self.node_id}] SQL Error: {e}")
+            print(f"[Nó {self.node_id}] Erro SQL: {e}")
             return {"status": "error", "node": self.node_id, "message": str(e)}
 
     def execute_replicated_query(self, msg):
@@ -222,19 +222,19 @@ class Node:
         
         # Verify integrity
         if self.calculate_checksum(sql) != received_checksum:
-            print(f"[Node {self.node_id}] Checksum mismatch for query: {sql}")
+            print(f"[Nó {self.node_id}] Divergência de Checksum para a query: {sql}")
             return
             
         try:
-            print(f"[Node {self.node_id}] Executing replicated query from Node {msg['origin']}")
+            print(f"[Nó {self.node_id}] Executando query replicada do Nó {msg['origin']}")
             cursor = self.db_conn.cursor()
             cursor.execute(sql)
         except Error as e:
-            print(f"[Node {self.node_id}] Error in replication: {e}")
+            print(f"[Nó {self.node_id}] Erro na replicação: {e}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python node.py <node_id>")
+        print("Uso: python node.py <id_do_no>")
         sys.exit(1)
     
     node_id = int(sys.argv[1])
@@ -284,16 +284,16 @@ if __name__ == "__main__":
             else:
                 self.process_message(msg)
         except Exception as e:
-            print(f"Error handling message: {e}")
+            print(f"Erro ao processar mensagem: {e}")
         finally:
             conn.close()
 
     Node.handle_client = patched_handle_client
     
-    print(f"Node {node_id} started. Press Ctrl+C to stop.")
+    print(f"Nó {node_id} iniciado. Pressione Ctrl+C para parar.")
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
         node.is_running = False
-        print("Node stopping...")
+        print("Nó parando...")

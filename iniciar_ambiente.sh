@@ -4,7 +4,7 @@
 IPS_FILE="ips.txt"
 PID_FILE="node_pids.tmp"
 LOG_DIR="logs"
-PYTHON_EXEC="python" # Use 'python3' se 'python' não funcionar
+PYTHON_EXEC="python3" # Use 'python' se 'python3' não funcionar
 
 # --- Funções Auxiliares ---
 
@@ -56,13 +56,46 @@ fi
 
 log_message "Endereços IP lidos do arquivo '$IPS_FILE': ${IPS[@]}"
 
-# 2. Verificar e Instalar Dependências Python
-log_message "Verificando dependências Python..."
-if ! check_command "$PYTHON_EXEC"; then
-    log_message "Erro: '$PYTHON_EXEC' não encontrado. Por favor, instale o Python ou ajuste a variável PYTHON_EXEC."
-    exit 1
+# 2. Configurar Ambiente Virtual (Venv) para evitar erro PEP 668
+log_message "Configurando ambiente virtual Python..."
+VENV_DIR=".venv"
+
+if [ ! -d "$VENV_DIR" ]; then
+    log_message "Criando ambiente virtual em '$VENV_DIR'..."
+    "$PYTHON_EXEC" -m venv "$VENV_DIR"
+    if [ $? -ne 0 ]; then
+        log_message "Erro: Falha ao criar ambiente virtual. Pode ser necessário instalar o pacote 'python3-venv'."
+        log_message "Tente executar: sudo apt update && sudo apt install python3-venv"
+        exit 1
+    fi
 fi
 
+# Atualizar PYTHON_EXEC para usar o python do ambiente virtual
+PYTHON_EXEC="$VENV_DIR/bin/python"
+log_message "Usando Python do ambiente virtual: $PYTHON_EXEC"
+
+# Verificar se o pip está instalado no venv
+"$PYTHON_EXEC" -m pip --version >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+    log_message "Aviso: Pip não encontrado no ambiente virtual. Tentando instalar via ensurepip..."
+    "$PYTHON_EXEC" -m ensurepip --upgrade --default-pip
+    if [ $? -ne 0 ]; then
+        log_message "Erro: Falha ao instalar o pip via ensurepip."
+        log_message "Isso indica uma instalação incompleta do Python."
+        log_message "POR FAVOR, REALIZE A CORREÇÃO ABAIXO DE ACORDO COM SEU SISTEMA:"
+        log_message "  1. Remova o venv quebrado:  rm -rf .venv"
+        log_message "  2. Instale os pacotes necessários:"
+        log_message "     [Debian/Ubuntu/WSL]: sudo apt update && sudo apt install python3-venv python3-pip"
+        log_message "     [Arch Linux]:        sudo pacman -S python (O Arch geralmente já inclui tudo, mas reinstalar pode corrigir)"
+        log_message "     [Fedora]:            sudo dnf install python3-pip"
+        log_message "  3. Tente rodar o script novamente."
+        exit 1
+    fi
+    log_message "Pip instalado com sucesso no ambiente virtual."
+fi
+
+# 3. Verificar e Instalar Dependências Python
+log_message "Instalando dependências no ambiente virtual..."
 if [ -f "requirements.txt" ]; then
     "$PYTHON_EXEC" -m pip install -r requirements.txt
     if [ $? -ne 0 ]; then
@@ -74,13 +107,26 @@ else
     log_message "Aviso: 'requirements.txt' não encontrado. Pulando instalação de dependências Python."
 fi
 
-# 3. Subir os Bancos de Dados Docker
-log_message "Iniciando contêineres MySQL com Docker Compose..."
-if ! check_command "docker-compose"; then
-    log_message "Erro: 'docker-compose' não encontrado. Por favor, instale o Docker e o Docker Compose."
+# 4. Subir os Bancos de Dados Docker
+log_message "Verificando Docker Compose..."
+DOCKER_COMPOSE_CMD=""
+
+if check_command "docker-compose"; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+elif docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker compose"
+fi
+
+if [ -z "$DOCKER_COMPOSE_CMD" ]; then
+    log_message "Erro: 'docker-compose' ou plugin 'docker compose' não encontrado."
+    log_message "Por favor, instale o Docker e o Docker Compose."
     exit 1
 fi
-docker-compose up -d
+
+log_message "Usando comando Docker: '$DOCKER_COMPOSE_CMD'"
+log_message "Iniciando contêineres MySQL..."
+
+$DOCKER_COMPOSE_CMD up -d
 if [ $? -ne 0 ]; then
     log_message "Erro ao iniciar contêineres Docker. Verifique a instalação do Docker e o 'docker-compose.yml'."
     exit 1

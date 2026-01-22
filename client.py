@@ -18,8 +18,8 @@ def send_query(node_info, sql):
         return {"status": "error", "message": str(e)}
 
 def find_coordinator(nodes):
-    """Asks nodes who the current coordinator is."""
-    print("Finding coordinator...")
+    """Pergunta aos nós quem é o atual coordenador."""
+    print("Procurando coordenador...")
     for node in nodes:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -44,20 +44,20 @@ def main():
         with open('config.json', 'r') as f:
             nodes = json.load(f)['nodes']
     except FileNotFoundError:
-        print("config.json not found.")
+        print("config.json não encontrado.")
         return
 
-    print("--- Distributed Database Client ---")
+    print("--- Cliente de Banco de Dados Distribuído ---")
     
     while True:
-        print("\nAvailable Nodes:")
+        print("\nNós Disponíveis:")
         for i, n in enumerate(nodes):
-            print(f"{i}: Node {n['id']} ({n['ip']}:{n['port']})")
-        print("a: Auto (Random Load Balancing)")
-        print("c: Coordinator (Send to Leader)")
+            print(f"{i}: Nó {n['id']} ({n['ip']}:{n['port']})")
+        print("a: Auto (Balanceamento de Carga Aleatório)")
+        print("c: Coordenador (Enviar para o Líder)")
         
         try:
-            choice = input("\nSelect node index, 'a', or 'c' (or 'q' to quit): ")
+            choice = input("\nSelecione o índice do nó, 'a' ou 'c' (ou 'q' para sair): ")
             if choice.lower() == 'q':
                 break
             
@@ -65,7 +65,7 @@ def main():
             
             if choice.lower() == 'a':
                 node_idx = random.randint(0, len(nodes) - 1)
-                print(f"Auto-selected Node {nodes[node_idx]['id']}")
+                print(f"Nó selecionado automaticamente: {nodes[node_idx]['id']}")
             elif choice.lower() == 'c':
                 coord_id = find_coordinator(nodes)
                 if coord_id is not None:
@@ -74,28 +74,28 @@ def main():
                         if n['id'] == coord_id:
                             node_idx = i
                             break
-                    print(f"Auto-selected Coordinator: Node {coord_id}")
+                    print(f"Coordenador selecionado automaticamente: Nó {coord_id}")
                 else:
-                    print("Could not find a coordinator (or cluster is down).")
+                    print("Não foi possível encontrar um coordenador (ou o cluster está fora do ar).")
                     continue
             else:
                 node_idx = int(choice)
                 if node_idx < 0 or node_idx >= len(nodes):
-                    print("Invalid index.")
+                    print("Índice inválido.")
                     continue
                 
-            sql = input("Enter SQL query: ")
+            sql = input("Digite a query SQL: ")
             if not sql:
                 continue
                 
             result = send_query(nodes[node_idx], sql)
             
-            print("\n--- Result ---")
+            print("\n--- Resultado ---")
             print(json.dumps(result, indent=2))
             print("--------------")
             
         except ValueError:
-            print("Please enter a valid option.")
+            print("Por favor, insira uma opção válida.")
         except KeyboardInterrupt:
             break
 

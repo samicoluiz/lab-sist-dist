@@ -7,7 +7,7 @@ import socket
 import os
 import sys
 
-# Add the parent directory to sys.path to import node
+# Adiciona o diretório pai ao sys.path para importar o node
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from node import Node
@@ -50,31 +50,31 @@ class TestDistDB(unittest.TestCase):
         return created_nodes
 
     def test_election_and_coordinator(self):
-        print("\n--- Testing Election ---")
+        print("\n--- Testando Eleição ---")
         base_port = 7000
         created = self.create_nodes_with_config([0, 1, 2], base_port)
         n0, n1, n2 = created
 
         time.sleep(5)
 
-        print(f"Node 0 Coordinator: {n0.coordinator_id}")
-        print(f"Node 1 Coordinator: {n1.coordinator_id}")
-        print(f"Node 2 Coordinator: {n2.coordinator_id}")
+        print(f"Coordenador do Nó 0: {n0.coordinator_id}")
+        print(f"Coordenador do Nó 1: {n1.coordinator_id}")
+        print(f"Coordenador do Nó 2: {n2.coordinator_id}")
 
         self.assertEqual(n0.coordinator_id, 2)
         self.assertEqual(n1.coordinator_id, 2)
         self.assertEqual(n2.coordinator_id, 2)
 
     def test_replication(self):
-        print("\n--- Testing Replication ---")
+        print("\n--- Testando Replicação ---")
         base_port = 8000
         created = self.create_nodes_with_config([0, 1, 2], base_port)
         n0, n1, n2 = created
         
         time.sleep(3)
 
-        sql = "INSERT INTO users (name) VALUES ('Test')"
-        print(f"Executing '{sql}' on Node 0")
+        sql = "INSERT INTO users (name) VALUES ('Teste')"
+        print(f"Executando '{sql}' no Nó 0")
         response = n0.execute_query(sql)
 
         self.assertEqual(response['status'], 'success')
@@ -85,14 +85,14 @@ class TestDistDB(unittest.TestCase):
         found_n1 = any(call.args[0] == sql for call in self.mock_cursors[1].execute.call_args_list)
         found_n2 = any(call.args[0] == sql for call in self.mock_cursors[2].execute.call_args_list)
         
-        print(f"Replicated to Node 1: {found_n1}")
-        print(f"Replicated to Node 2: {found_n2}")
+        print(f"Replicado para o Nó 1: {found_n1}")
+        print(f"Replicado para o Nó 2: {found_n2}")
 
         self.assertTrue(found_n1)
         self.assertTrue(found_n2)
 
     def test_read_operation(self):
-        print("\n--- Testing Read Operation ---")
+        print("\n--- Testando Operação de Leitura ---")
         base_port = 9000
         created = self.create_nodes_with_config([0, 1], base_port)
         n0, n1 = created
@@ -101,7 +101,7 @@ class TestDistDB(unittest.TestCase):
         self.mock_cursors[0].fetchall.return_value = [{'id': 1, 'name': 'Luiz'}]
 
         sql = "SELECT * FROM users"
-        print(f"Executing '{sql}' on Node 0")
+        print(f"Executando '{sql}' no Nó 0")
         response = n0.execute_query(sql)
 
         self.assertEqual(response['status'], 'success')
@@ -110,7 +110,7 @@ class TestDistDB(unittest.TestCase):
         self.mock_cursors[1].reset_mock()
         time.sleep(1)
         self.mock_cursors[1].execute.assert_not_called()
-        print("Read operation correctly NOT replicated.")
+        print("Operação de leitura corretamente NÃO replicada.")
 
 if __name__ == '__main__':
     unittest.main()

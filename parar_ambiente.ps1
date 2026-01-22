@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-# PowerShell script to stop and clean the distributed environment
+# Script PowerShell para parar e limpar o ambiente distribuído
 
-# --- Configuration Variables ---
+# --- Variáveis de Configuração ---
 $PidFile = "node_pids.tmp"
 $LogDir = "logs"
 
-# --- Helper Functions ---
+# --- Funções Auxiliares ---
 
 function Log-Message {
     Param (
@@ -21,46 +21,59 @@ function Check-Command {
     (Get-Command $Command -ErrorAction SilentlyContinue) -ne $null
 }
 
-# --- Script Start ---
+# --- Início do Script ---
 
-Log-Message "Starting process to stop and clean up the distributed environment..."
+Log-Message "Iniciando o processo de parada e limpeza do ambiente distribuído..."
 
-# 1. Stop Middleware Nodes
+# 1. Parar os nós do Middleware
 if (Test-Path $PidFile) {
-    Log-Message "Stopping middleware node processes..."
+    Log-Message "Parando os processos dos nós do middleware..."
     $PIDs = Get-Content $PidFile
     foreach ($pid in $PIDs) {
         if (Get-Process -Id $pid -ErrorAction SilentlyContinue) {
-            Log-Message "Stopping PID $pid..."
+            Log-Message "Encerrando PID $pid..."
             Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
-            Start-Sleep -Milliseconds 500 # Small pause for process to terminate
+            Start-Sleep -Milliseconds 500 # Pequena pausa para o processo encerrar
         } else {
-            Log-Message "PID $pid is no longer active."
+            Log-Message "O PID $pid não está mais ativo."
         }
     }
     Remove-Item $PidFile
-    Log-Message "Middleware node processes stopped."
+    Log-Message "Processos dos nós do middleware parados."
 } else {
-    Log-Message "PID file '$PidFile' not found. No middleware nodes to stop via PID."
+    Log-Message "Arquivo de PID '$PidFile' não encontrado. Nenhum nó do middleware para parar via PID."
 }
 
-# 2. Stop Docker Databases
-Log-Message "Stopping and removing MySQL containers with Docker Compose..."
-if (-not (Check-Command "docker-compose")) {
-    Log-Message "Error: 'docker-compose' not found. Please install Docker and Docker Compose."
+# 2. Parar os Bancos de Dados Docker
+Log-Message "Parando e removendo contêineres MySQL com o Docker Compose..."
+
+DOCKER_COMPOSE_CMD=""
+if (Check-Command "docker-compose") {
+    $DOCKER_COMPOSE_CMD = "docker-compose"
+} else {
+    # Verificar se 'docker compose' (v2 plugin) está disponível
+    # Em PowerShell, é um pouco diferente testar o comando com espaço
+    if (& docker compose version 2>&1 | Out-String -Stream | Select-String "version") {
+        $DOCKER_COMPOSE_CMD = "docker compose"
+    }
+}
+
+if ([string]::IsNullOrEmpty($DOCKER_COMPOSE_CMD)) {
+    Log-Message "Erro: 'docker-compose' ou plugin 'docker compose' não encontrado."
     exit 1
 }
-Invoke-Expression "docker-compose down -v --remove-orphans" # '-v' removes volumes, ensures data is cleaned
+
+Invoke-Expression "$DOCKER_COMPOSE_CMD down -v --remove-orphans" # '-v' remove volumes, garante que os dados sejam limpos
 if ($LASTEXITCODE -ne 0) {
-    Log-Message "Error stopping Docker containers. Check Docker installation and 'docker-compose.yml'."
+    Log-Message "Erro ao parar os contêineres Docker. Verifique a instalação do Docker e o 'docker-compose.yml'."
     exit 1
 }
-Log-Message "MySQL containers stopped and removed."
+Log-Message "Contêineres MySQL parados e removidos."
 
-# 3. Clean up Logs
+# 3. Limpeza de Logs
 if (Test-Path $LogDir -PathType Container) {
-    Log-Message "Removing logs directory '$LogDir'..."
+    Log-Message "Removendo o diretório de logs '$LogDir'..."
     Remove-Item -Recurse -Force $LogDir
 }
 
-Log-Message "Distributed environment stopped and cleaned successfully!"
+Log-Message "Ambiente distribuído parado e limpo com sucesso!"

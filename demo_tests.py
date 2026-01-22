@@ -128,14 +128,14 @@ def test_load_balancing(nodes, num_requests=9):
         
         if result.get('status') == 'success':
             node_count[selected_node['id']] += 1
-            print(f"  Request {i+1}: Nó {selected_node['id']} ✅")
+            print(f"  Requisição {i+1}: Nó {selected_node['id']} ✅")
         else:
-            print(f"  Request {i+1}: Nó {selected_node['id']} ❌ {result.get('message', 'erro')}")
+            print(f"  Requisição {i+1}: Nó {selected_node['id']} ❌ {result.get('message', 'erro')}")
     
     print("\n  Distribuição de requisições:")
     for node_id, count in node_count.items():
         bar = "█" * count
-        print(f"    Nó {node_id}: {bar} ({count} requests)")
+        print(f"    Nó {node_id}: {bar} ({count} requisições)")
     
     return True
 

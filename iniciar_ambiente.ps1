@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-# PowerShell script to start the distributed environment
+# Script PowerShell para iniciar o ambiente distribuído
 
-# --- Configuration Variables ---
+# --- Variáveis de Configuração ---
 $IpsFile = "ips.txt"
 $PidFile = "node_pids.tmp"
 $LogDir = "logs"
-$PythonExec = "python" # Use 'python.exe' or 'py -3' if 'python' does not work
+$PythonExec = "python" # Use 'python.exe' ou 'py -3' se 'python' não funcionar
 
-# --- Helper Functions ---
+# --- Funções Auxiliares ---
 
 function Log-Message {
     Param (
@@ -28,33 +28,33 @@ function Wait-ForDb {
         [string]$Host,
         [int]$Port
     )
-    Log-Message "Waiting for MySQL database at ${Host}:${Port} to become available..."
+    Log-Message "Aguardando o banco de dados MySQL em ${Host}:${Port} ficar disponível..."
     $timeout = 60
     while ($timeout -gt 0) {
         try {
             $socket = New-Object System.Net.Sockets.TcpClient($Host, $Port)
             if ($socket.Connected) {
                 $socket.Close()
-                Log-Message "MySQL database at ${Host}:${Port} is available."
+                Log-Message "O banco de dados MySQL em ${Host}:${Port} está disponível."
                 return $true
             }
         } catch {
-            # Connection failed, continue waiting
+            # Falha na conexão, continuar aguardando
         }
         Start-Sleep -Seconds 1
         $timeout--
     }
-    Log-Message "Error: MySQL database at ${Host}:${Port} did not respond after 60 seconds."
+    Log-Message "Erro: O banco de dados MySQL em ${Host}:${Port} não respondeu após 60 segundos."
     return $false
 }
 
-# --- Script Start ---
+# --- Início do Script ---
 
-Log-Message "Starting distributed environment deployment process..."
+Log-Message "Iniciando o processo de implantação do ambiente distribuído..."
 
-# 1. Read IPs
+# 1. Ler IPs
 if (-not (Test-Path $IpsFile)) {
-    Log-Message "Error: File '$IpsFile' not found. Please create it with one IP per line."
+    Log-Message "Erro: Arquivo '$IpsFile' não encontrado. Por favor, crie-o com um IP por linha."
     exit 1
 }
 $IPs = @()
@@ -66,84 +66,84 @@ $IPs = @()
 }
 
 if ($IPs.Count -eq 0) {
-    Log-Message "Error: No valid IP addresses found in '$IpsFile'."
+    Log-Message "Erro: Nenhum endereço IP válido encontrado em '$IpsFile'."
     exit 1
 }
 
-Log-Message "IP addresses read from file '$IpsFile': $($IPs -join ', ')"
+Log-Message "Endereços IP lidos do arquivo '$IpsFile': $($IPs -join ', ')"
 
-# 2. Check and Install Python Dependencies
-Log-Message "Checking Python dependencies..."
+# 2. Verificar e Instalar Dependências Python
+Log-Message "Verificando dependências Python..."
 if (-not (Check-Command $PythonExec)) {
-    Log-Message "Error: '$PythonExec' not found. Please install Python or adjust the \$PythonExec variable."
+    Log-Message "Erro: '$PythonExec' não encontrado. Por favor, instale o Python ou ajuste a variável $PythonExec."
     exit 1
 }
 
 if (Test-Path "requirements.txt") {
     Invoke-Expression "$PythonExec -m pip install -r requirements.txt"
     if ($LASTEXITCODE -ne 0) {
-        Log-Message "Error installing Python dependencies. Check 'requirements.txt' and your connection."
+        Log-Message "Erro ao instalar dependências Python. Verifique o 'requirements.txt' e sua conexão."
         exit 1
     }
-    Log-Message "Python dependencies checked/installed."
+    Log-Message "Dependências Python verificadas/instaladas."
 } else {
-    Log-Message "Warning: 'requirements.txt' not found. Skipping Python dependency installation."
+    Log-Message "Aviso: 'requirements.txt' não encontrado. Pulando a instalação de dependências Python."
 }
 
-# 3. Bring up Docker Databases
-Log-Message "Starting MySQL containers with Docker Compose..."
+# 3. Subir os Bancos de Dados Docker
+Log-Message "Iniciando contêineres MySQL com o Docker Compose..."
 if (-not (Check-Command "docker-compose")) {
-    Log-Message "Error: 'docker-compose' not found. Please install Docker and Docker Compose."
+    Log-Message "Erro: 'docker-compose' não encontrado. Por favor, instale o Docker e o Docker Compose."
     exit 1
 }
 Invoke-Expression "docker-compose up -d"
 if ($LASTEXITCODE -ne 0) {
-    Log-Message "Error starting Docker containers. Check Docker installation and 'docker-compose.yml'."
+    Log-Message "Erro ao iniciar contêineres Docker. Verifique a instalação do Docker e o 'docker-compose.yml'."
     exit 1
 }
-Log-Message "MySQL containers started."
+Log-Message "Contêineres MySQL iniciados."
 
-# 4. Wait for Databases to be ready
+# 4. Aguardar a prontidão dos Bancos de Dados
 if (-not (Wait-ForDb $IPs[0] 3306)) {
-    Log-Message "Environment initialization failed."
+    Log-Message "Falha na inicialização do ambiente."
     exit 1
 }
 
-# 5. Generate config.json file
-Log-Message "Generating config.json based on provided IPs..."
+# 5. Gerar o arquivo config.json
+Log-Message "Gerando config.json com base nos IPs fornecidos..."
 $ConfigArgs = $IPs | ForEach-Object { "$_" }
 Invoke-Expression "$PythonExec configurar.py $ConfigArgs"
 if ($LASTEXITCODE -ne 0) {
-    Log-Message "Error generating 'config.json'. Check 'configurar.py'."
+    Log-Message "Erro ao gerar 'config.json'. Verifique 'configurar.py'."
     exit 1
 }
-Log-Message "config.json file generated successfully."
+Log-Message "Arquivo config.json gerado com sucesso."
 
-# 6. Initialize Database Tables
-Log-Message "Initializing database schema..."
+# 6. Inicializar as Tabelas dos Bancos de Dados
+Log-Message "Inicializando o esquema do banco de dados..."
 Invoke-Expression "$PythonExec init_db.py"
 if ($LASTEXITCODE -ne 0) {
-    Log-Message "Error initializing databases. Check 'init_db.py'."
+    Log-Message "Erro ao inicializar os bancos de dados. Verifique 'init_db.py'."
     exit 1
 }
-Log-Message "Database schema initialized."
+Log-Message "Esquema do banco de dados inicializado."
 
-# 7. Launch Middleware Nodes in background
-Log-Message "Starting middleware nodes in background..."
-Remove-Item $PidFile -ErrorAction SilentlyContinue # Clear previous PID file
+# 7. Lançar os Nós do Middleware em segundo plano
+Log-Message "Iniciando os nós do middleware em segundo plano..."
+Remove-Item $PidFile -ErrorAction SilentlyContinue # Limpar arquivo de PID anterior
 if (-not (Test-Path $LogDir -PathType Container)) {
-    New-Item -ItemType Directory -Path $LogDir | Out-Null # Create logs directory if it doesn't exist
+    New-Item -ItemType Directory -Path $LogDir | Out-Null # Criar diretório de logs se não existir
 }
 
 for ($i = 0; $i -lt $IPs.Count; $i++) {
-    Log-Message "Starting node $i..."
-    # node.py now handles its own logging.
+    Log-Message "Iniciando o nó $i..."
+    # node.py agora lida com seu próprio log.
     $Process = Start-Process -FilePath $PythonExec -ArgumentList "node.py $i" -NoNewWindow -PassThru
     $Process.Id | Out-File -Append -FilePath $PidFile
-    Log-Message "Node $i started with PID $($Process.Id). Logs are in $LogDir\node$i.log"
+    Log-Message "Nó $i iniciado com o PID $($Process.Id). Os logs estão em $LogDir\node$i.log"
 }
 
-Log-Message "All middleware nodes have been started in the background."
-Log-Message "To interact with the environment, use 'python client.py'."
-Log-Message "To stop the environment, execute '.\parar_ambiente.ps1'."
-Log-Message "Environment deployment completed successfully!"
+Log-Message "Todos os nós do middleware foram iniciados em segundo plano."
+Log-Message "Para interagir com o ambiente, use 'python client.py'."
+Log-Message "Para parar o ambiente, execute '.arar_ambiente.ps1'."
+Log-Message "Implantação do ambiente concluída com sucesso!"

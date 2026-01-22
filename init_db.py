@@ -16,10 +16,10 @@ def init():
             )
             cursor = conn.cursor()
             cursor.execute("CREATE TABLE IF NOT EXISTS users (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), email VARCHAR(255))")
-            print(f"Initialized Node {n['id']} database.")
+            print(f"Banco de dados do Nó {n['id']} inicializado.")
             conn.close()
         except Exception as e:
-            print(f"Error initializing Node {n['id']}: {e}")
+            print(f"Erro ao inicializar o Nó {n['id']}: {e}")
 
 if __name__ == "__main__":
     init()

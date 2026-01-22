@@ -1,5 +1,5 @@
 def main():
-    print("Hello from distributed-db!")
+    print("Olá do banco de dados distribuído!")
 
 
 if __name__ == "__main__":

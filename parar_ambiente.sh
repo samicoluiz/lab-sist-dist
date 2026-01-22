@@ -38,11 +38,20 @@ fi
 
 # 2. Parar os Bancos de Dados Docker
 log_message "Parando e removendo contêineres MySQL com Docker Compose..."
-if ! check_command "docker-compose"; then
-    log_message "Erro: 'docker-compose' não encontrado. Por favor, instale o Docker e o Docker Compose."
+
+DOCKER_COMPOSE_CMD=""
+if check_command "docker-compose"; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+elif docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker compose"
+fi
+
+if [ -z "$DOCKER_COMPOSE_CMD" ]; then
+    log_message "Erro: 'docker-compose' ou plugin 'docker compose' não encontrado."
     exit 1
 fi
-docker-compose down -v --remove-orphans # '-v' remove volumes, '-v' ensures data is cleaned
+
+$DOCKER_COMPOSE_CMD down -v --remove-orphans # '-v' remove volumes, ensures data is cleaned
 if [ $? -ne 0 ]; then
     log_message "Erro ao parar contêineres Docker. Verifique a instalação do Docker e o 'docker-compose.yml'."
     exit 1
