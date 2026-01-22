@@ -6,6 +6,7 @@ import hashlib
 import mysql.connector
 from mysql.connector import Error
 import sys
+import os
 
 class Node:
     def __init__(self, node_id, config_path='config.json'):
@@ -237,6 +238,18 @@ if __name__ == "__main__":
         sys.exit(1)
     
     node_id = int(sys.argv[1])
+
+    # Redirect stdout and stderr to a log file
+    log_dir = "logs"
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    log_file = os.path.join(log_dir, f"node{node_id}.log")
+    
+    # Open the log file and redirect stdout/stderr
+    log_fp = open(log_file, 'w')
+    sys.stdout = log_fp
+    sys.stderr = log_fp
+
     node = Node(node_id)
     
     # Keep the main thread alive to handle client queries via another socket 

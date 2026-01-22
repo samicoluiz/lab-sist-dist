@@ -28,14 +28,14 @@ function Wait-ForDb {
         [string]$Host,
         [int]$Port
     )
-    Log-Message "Waiting for MySQL database at $Host:$Port to become available..."
+    Log-Message "Waiting for MySQL database at ${Host}:${Port} to become available..."
     $timeout = 60
     while ($timeout -gt 0) {
         try {
             $socket = New-Object System.Net.Sockets.TcpClient($Host, $Port)
             if ($socket.Connected) {
                 $socket.Close()
-                Log-Message "MySQL database at $Host:$Port is available."
+                Log-Message "MySQL database at ${Host}:${Port} is available."
                 return $true
             }
         } catch {
@@ -44,7 +44,7 @@ function Wait-ForDb {
         Start-Sleep -Seconds 1
         $timeout--
     }
-    Log-Message "Error: MySQL database at $Host:$Port did not respond after 60 seconds."
+    Log-Message "Error: MySQL database at ${Host}:${Port} did not respond after 60 seconds."
     return $false
 }
 
@@ -137,10 +137,10 @@ if (-not (Test-Path $LogDir -PathType Container)) {
 
 for ($i = 0; $i -lt $IPs.Count; $i++) {
     Log-Message "Starting node $i..."
-    # Start-Process with -NoNewWindow runs it in the background without a new console window
-    $Process = Start-Process -FilePath $PythonExec -ArgumentList "node.py $i" -NoNewWindow -PassThru -RedirectStandardOutput "$LogDir\node$i.log" -RedirectStandardError "$LogDir\node$i.log"
+    # node.py now handles its own logging.
+    $Process = Start-Process -FilePath $PythonExec -ArgumentList "node.py $i" -NoNewWindow -PassThru
     $Process.Id | Out-File -Append -FilePath $PidFile
-    Log-Message "Node $i started with PID $($Process.Id). Logs in $LogDir\node$i.log"
+    Log-Message "Node $i started with PID $($Process.Id). Logs are in $LogDir\node$i.log"
 }
 
 Log-Message "All middleware nodes have been started in the background."

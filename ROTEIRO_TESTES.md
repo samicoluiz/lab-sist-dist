@@ -1,224 +1,153 @@
-# 🧪 Roteiro de Testes - Middleware de Banco de Dados Distribuído
+# 🚀 Guia de Testes e Demonstração do Banco de Dados Distribuído
 
-Este documento descreve os testes para demonstrar o funcionamento do middleware em máquinas reais.
+Este documento unifica os roteiros de teste para dois cenários de apresentação:
+
+1.  **Máquina Única:** Usando Docker e scripts de automação para simular um ambiente distribuído localmente. Ideal para uma demonstração rápida e controlada.
+2.  **Múltiplas Máquinas:** Configurando o ambiente manualmente em diferentes máquinas (físicas ou virtuais) para provar o funcionamento em uma rede real.
 
 ---
 
-## 📋 Pré-requisitos
+## Cenário 1: Demonstração em Máquina Única (com Docker)
 
-### Em cada máquina:
-- [ ] Python 3.8+ instalado
-- [ ] MySQL 8.0 rodando
-- [ ] Usuário MySQL: `root` / Senha: `root`
-- [ ] Database `bd-dist` criado
-- [ ] Tabela `users` inicializada (`python init_db.py`)
-- [ ] Arquivo `config.json` com IPs reais
-- [ ] Porta 5000 e 3306 liberadas no firewall
+Este cenário é o mais rápido para apresentar, pois utiliza os scripts de automação que preparam todo o ambiente.
 
-### Comandos de preparação:
-```bash
-# Em cada máquina
-pip install mysql-connector-python
+### 1.1 Preparando o Ambiente
 
-# Criar database (no MySQL)
-CREATE DATABASE IF NOT EXISTS bd-dist;
+Tudo o que você precisa para iniciar o ambiente está contido em um único script.
 
-# Inicializar tabela
-python init_db.py
+**Ação:** Abra um terminal PowerShell e execute:
+```powershell
+.\iniciar_ambiente.ps1
 ```
 
----
+**O que acontece neste momento:**
+1.  As dependências Python são instaladas.
+2.  Os três contêineres Docker (um para cada nó do banco de dados) são iniciados.
+3.  O script aguarda os bancos de dados ficarem prontos.
+4.  O arquivo `config.json` é gerado com os IPs dos contêineres.
+5.  O esquema de tabelas é inicializado em cada banco de dados.
+6.  Os três processos do middleware (`node.py`) são iniciados em segundo plano.
 
-## 🎯 TESTE 1: Eleição de Coordenador (Bully Algorithm)
+**Como observar os nós:**
+Para ver o que cada nó está fazendo em tempo real, abra **três terminais** e execute em cada um:
 
-### Objetivo
-Demonstrar que o algoritmo do Valentão elege corretamente o nó com maior ID.
+```powershell
+# Terminal 1
+Get-Content .\logs\node0.log -Wait
 
-### Passos
+# Terminal 2
+Get-Content .\logs\node1.log -Wait
 
-| Ordem | Máquina | Comando | Resultado Esperado |
-|-------|---------|---------|-------------------|
-| 1 | A | `python node.py 0` | "I am the coordinator" |
-| 2 | B | `python node.py 1` | "New Coordinator: 1" em A e B |
-| 3 | C | `python node.py 2` | "New Coordinator: 2" em A, B e C |
-
-### Screenshot sugerido
-Captura dos 3 terminais mostrando a eleição convergindo para Nó 2.
-
----
-
-## 🎯 TESTE 2: Heartbeat e Detecção de Falha
-
-### Objetivo
-Mostrar que nós inativos são detectados e nova eleição é disparada.
-
-### Passos
-
-| Ordem | Ação | Resultado |
-|-------|------|-----------|
-| 1 | Com 3 nós rodando, encerre o Nó 2 (Ctrl+C) | - |
-| 2 | Aguarde 10-15 segundos | Logs: "Node 2 is down" em A e B |
-| 3 | Observe a eleição | "New Coordinator: 1" |
-
-### Screenshot sugerido
-Terminal do Nó 0 ou 1 mostrando detecção de falha + nova eleição.
-
----
-
-## 🎯 TESTE 3: Replicação de Escrita
-
-### Objetivo
-Provar que operações de escrita são replicadas para todos os nós.
-
-### Passos
-
-1. Execute o cliente em qualquer máquina:
-   ```bash
-   python client.py
-   ```
-
-2. Selecione o Nó 0 e execute:
-   ```sql
-   INSERT INTO users (name, email) VALUES ('Maria Silva', 'maria@empresa.com');
-   ```
-
-3. Observe os terminais:
-   - **Nó 0**: "WRITE operation. Transmitting content..."
-   - **Nó 1 e 2**: "Executing replicated query from Node 0"
-
-4. Verifique em cada nó:
-   ```sql
-   SELECT * FROM users;
-   ```
-
-### Resultado esperado
-Todos os 3 nós retornam o registro da Maria Silva.
-
----
-
-## 🎯 TESTE 4: Verificação de Checksum (Integridade)
-
-### Objetivo
-Demonstrar que o hash MD5 é calculado e verificado.
-
-### O que observar
-Ao enviar um INSERT, o log mostra:
-```
-[Node 0] Checksum: a1b2c3d4e5f6...
-[Node 1] Executing replicated query from Node 0
+# Terminal 3
+Get-Content .\logs\node2.log -Wait
 ```
 
-O checksum garante que dados corrompidos seriam rejeitados.
+### 1.2 Demonstração Passo a Passo
 
----
+Com o ambiente rodando e os logs visíveis, siga os passos abaixo.
 
-## 🎯 TESTE 5: Balanceamento de Carga
+#### Passo 1: Verificando a Eleição do Coordenador
+**Ação:** Observe os logs.
+**Resultado:** O Nó 2 será eleito o coordenador (mensagem: `New Coordinator: 2` nos outros, e `I am the coordinator` nele).
+> 🎤 **Ponto da Apresentação:** "O algoritmo do Valentão elege o nó de maior ID como coordenador inicial."
 
-### Objetivo
-Demonstrar distribuição de requisições entre nós.
-
-### Passos
-
-1. Execute o cliente:
-   ```bash
-   python client.py
-   ```
-
-2. Escolha opção `a` (Auto) 10 vezes executando:
-   ```sql
-   SELECT * FROM users;
-   ```
-
-3. Observe a distribuição nos terminais dos nós.
-
-### Resultado esperado
-Requisições distribuídas aproximadamente igual (~3-4 por nó).
-
----
-
-## 🎯 TESTE 6: Consistência de Dados
-
-### Objetivo
-Verificar que todos os nós têm dados idênticos.
-
-### Passos
-
-1. Insira 5 registros via Nó 0:
-   ```sql
-   INSERT INTO users (name, email) VALUES ('User1', 'u1@test.com');
-   INSERT INTO users (name, email) VALUES ('User2', 'u2@test.com');
-   INSERT INTO users (name, email) VALUES ('User3', 'u3@test.com');
-   INSERT INTO users (name, email) VALUES ('User4', 'u4@test.com');
-   INSERT INTO users (name, email) VALUES ('User5', 'u5@test.com');
-   ```
-
-2. Execute SELECT em cada nó individualmente:
-   ```sql
-   SELECT * FROM users;
-   ```
-
-### Resultado esperado
-Todos os nós retornam exatamente os mesmos 5 registros.
-
----
-
-## 🎯 TESTE 7: Recuperação de Falha do Coordenador
-
-### Objetivo
-Mostrar tolerância a falhas do sistema.
-
-### Passos
-
-| Ordem | Ação | Resultado |
-|-------|------|-----------|
-| 1 | Desligar Nó 2 (coordenador) | - |
-| 2 | Aguardar detecção | "Node 2 is down" |
-| 3 | Observar eleição | Nó 1 vira coordenador |
-| 4 | Enviar INSERT para Nó 0 | Operação funciona normalmente |
-| 5 | SELECT em Nó 0 e 1 | Dados consistentes |
-
----
-
-## 🎯 TESTE 8: Comunicação Entre Máquinas Diferentes
-
-### Objetivo
-Provar que funciona com IPs reais (não localhost).
-
-### Configuração (config.json)
-```json
-{
-  "nodes": [
-    {"id": 0, "ip": "192.168.1.10", "port": 5000, "db_port": 3306},
-    {"id": 1, "ip": "192.168.1.11", "port": 5000, "db_port": 3306},
-    {"id": 2, "ip": "192.168.1.12", "port": 5000, "db_port": 3306}
-  ]
-}
+#### Passo 2: Realizando uma Operação de Escrita (INSERT)
+**Ação:** Use `python client.py`, conecte-se a qualquer nó (ex: `0`) e execute:
+```sql
+INSERT INTO users (name, email) VALUES ('Ada Lovelace', 'ada@babbage.com');
 ```
+**Resultado:** O log do Nó 0 mostrará `Transmitting content...`, e os outros `Executing replicated query...`.
+> 🎤 **Ponto da Apresentação:** "Operações de escrita são replicadas para todos os nós para garantir a consistência."
 
-### Passos
-1. Execute `python node.py X` em cada máquina (X = 0, 1, 2)
-2. Execute `python client.py` de qualquer máquina
-3. Envie queries para nós em IPs diferentes
+#### Passo 3: Verificando a Replicação
+**Ação:** Use o `client.py` para executar `SELECT * FROM users;` em cada um dos três nós.
+**Resultado:** Todos os nós retornarão o registro de 'Ada Lovelace'.
+> 🎤 **Ponto da Apresentação:** "A consulta retorna o mesmo resultado em todos os nós, provando que o cluster está consistente."
 
-### Resultado esperado
-Comunicação cross-network funcionando.
+#### Passo 4: Demonstrando a Tolerância a Falhas
+**Ação:** Derrube o coordenador (Nó 2).
+1.  Encontre o PID do Nó 2 (é o terceiro no arquivo `node_pids.tmp`).
+    ```powershell
+    Get-Content .\node_pids.tmp 
+    ```
+2.  Encerre o processo.
+    ```powershell
+    Stop-Process -Id <PID_DO_NO_2>
+    ```
+**Resultado:** Os logs dos nós 0 e 1 detectarão a falha (`Node 2 is down`) e elegerão o Nó 1 como novo coordenador.
+> 🎤 **Ponto da Apresentação:** "Simulamos a falha do coordenador. O sistema detectou e iniciou uma nova eleição, mantendo-se operacional."
 
+#### Passo 5: Verificando a Funcionalidade Pós-Falha
+**Ação:** Com o Nó 2 inativo, use o `client.py` para inserir um novo registro em um nó ativo (0 ou 1).
+```sql
+INSERT INTO users (name, email) VALUES ('Charles Babbage', 'charles@babbage.com');
+```
+**Resultado:** A escrita funcionará, e um `SELECT` nos nós 0 e 1 mostrará o novo registro.
+> 🎤 **Ponto da Apresentação:** "Mesmo com um nó a menos, o cluster continua disponível e consistente, demonstrando alta disponibilidade."
+
+### 1.3 Encerrando o Ambiente
+**Ação:** Para limpar tudo, execute:
+```powershell
+.\parar_ambiente.ps1
+```
 ---
 
-## 🤖 Script de Demonstração Automatizado
+## Cenário 2: Demonstração em Múltiplas Máquinas
 
-Execute o script que criei para testes automáticos:
+Este cenário prova que o sistema funciona em um ambiente de rede real, sem Docker.
+
+### 2.1 Pré-requisitos e Configuração Manual
+
+**Em cada uma das 3 máquinas:**
+- [ ] Clone o repositório do projeto.
+- [ ] Instale Python 3.8+.
+- [ ] Instale e configure um servidor MySQL 8.0.
+- [ ] No MySQL, crie o usuário `root` com senha `root` e dê as permissões necessárias.
+- [ ] Crie o banco de dados: `CREATE DATABASE IF NOT EXISTS bd-dist;`.
+- [ ] Libere as portas `5000` (para o middleware) e `3306` (para o MySQL) no firewall.
+- [ ] Instale as dependências: `pip install -r requirements.txt`.
+
+**Configuração Central:**
+1.  Escolha uma máquina para ser a "principal" (onde você rodará o cliente).
+2.  Crie o arquivo `ips.txt`, listando os IPs de rede de cada uma das 3 máquinas.
+3.  Crie o arquivo `config.json` manualmente, com a seguinte estrutura:
+    ```json
+    {
+      "nodes": [
+        {"id": 0, "ip": "192.168.1.10", "port": 5000, "db_port": 3306},
+        {"id": 1, "ip": "192.168.1.11", "port": 5000, "db_port": 3306},
+        {"id": 2, "ip": "192.168.1.12", "port": 5000, "db_port": 3306}
+      ]
+    }
+    ```
+    *Substitua pelos IPs reais de suas máquinas.*
+
+4.  Execute o script de inicialização do banco de dados em **uma** das máquinas (ele se conectará remotamente às outras).
+    ```bash
+    python init_db.py
+    ```
+
+### 2.2 Roteiro de Testes Manuais
+
+**Ação:** Em cada máquina, abra um terminal e inicie o nó correspondente ao seu ID.
 
 ```bash
-python demo_tests.py
+# Na máquina com final de IP .10
+python node.py 0
+
+# Na máquina com final de IP .11
+python node.py 1
+
+# Na máquina com final de IP .12
+python node.py 2
 ```
 
-Este script executa:
-- ✅ Verificação de conectividade
-- ✅ Teste de replicação INSERT
-- ✅ Teste de balanceamento de carga
-- ✅ Teste de consistência
-- ✅ Teste de UPDATE/DELETE replicados
+Agora, você pode seguir exatamente os mesmos passos da **Seção 1.2 (Demonstração Passo a Passo)**. A lógica é idêntica:
+- Observe a eleição do Nó 2.
+- Use `python client.py` de qualquer uma das máquinas para inserir dados.
+- Observe a replicação nos terminais de cada máquina.
+- Para simular a falha, simplesmente use `Ctrl+C` no terminal da máquina do Nó 2.
+- Observe a nova eleição e a continuidade do sistema.
 
 ---
 
@@ -226,38 +155,34 @@ Este script executa:
 
 | # | Captura | Demonstra |
 |---|---------|-----------|
-| 1 | 3 terminais com nós rodando | Arquitetura distribuída |
+| 1 | 3 terminais (locais ou remotos) com nós rodando | Arquitetura distribuída |
 | 2 | Log "New Coordinator: 2" | Bully Algorithm |
 | 3 | Log "Node X is down" | Detecção de falha |
 | 4 | Log "Transmitting content" + "Checksum" | Replicação + Integridade |
-| 5 | Client.py com resultado JSON | Interface do cliente |
-| 6 | SELECT em 3 nós com dados iguais | Consistência |
-| 7 | config.json com IPs reais | Configurabilidade |
-| 8 | Saída do demo_tests.py | Testes automatizados |
+| 5 | Saída do `client.py` com resultado JSON | Interface do cliente |
+| 6 | `SELECT` em 3 nós/máquinas com dados idênticos | Consistência de dados |
+| 7 | `config.json` com IPs reais (para Cenário 2) | Configurabilidade |
 
 ---
 
-## ⚠️ Problemas Conhecidos
+## ⚠️ Problemas Conhecidos e Limitações
 
 ### 1. Sincronização de Nó Reiniciado
 Quando um nó é desligado e religado, ele não recebe os dados que foram inseridos durante sua ausência.
-
-**Solução sugerida**: Implementar sincronização inicial (snapshot) ao reconectar.
+**Solução sugerida**: Implementar um mecanismo de *state transfer* onde um nó que retorna pede ao coordenador um snapshot dos dados atuais.
 
 ### 2. Conflitos de Escrita Simultânea
-Se dois clientes inserem no mesmo momento em nós diferentes, pode haver conflito de ID auto-increment.
-
-**Solução sugerida**: Usar UUID ou coordenador para serializar escritas.
+Se dois clientes inserem dados no mesmo momento em nós diferentes, pode haver um conflito de chave primária (auto-increment).
+**Solução sugerida**: Usar UUIDs para chaves primárias ou ter o coordenador como ponto central para serializar todas as operações de escrita.
 
 ---
 
 ## 🏁 Conclusão
 
-O middleware demonstra:
-- ✅ Replicação automática de escritas
-- ✅ Eleição de líder (Bully Algorithm)
-- ✅ Heartbeat e detecção de falhas
-- ✅ Verificação de integridade (MD5)
-- ✅ Balanceamento de carga
-- ✅ Comunicação via sockets
-- ✅ Configuração flexível via JSON
+O middleware desenvolvido demonstra com sucesso os principais conceitos de sistemas distribuídos:
+- ✅ Replicação automática de escritas.
+- ✅ Eleição de líder e tolerância a falhas (Bully Algorithm).
+- ✅ Detecção de falhas via Heartbeat.
+- ✅ Verificação de integridade de dados (MD5).
+- ✅ Comunicação via sockets em um ambiente de rede.
+- ✅ Configuração flexível para se adaptar a diferentes topologias de rede.
