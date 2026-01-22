@@ -38,8 +38,8 @@ function Wait-ForDb {
             $socket = New-Object System.Net.Sockets.TcpClient($DbHost, $Port)
             if ($socket.Connected) {
                 $socket.Close()
-                Log-Message "Porta ${Port} aberta. Aguardando 10 segundos para inicialização completa do MySQL..."
-                Start-Sleep -Seconds 10
+                Log-Message "Porta ${Port} aberta. Aguardando 20 segundos para inicialização completa do MySQL..."
+                Start-Sleep -Seconds 20
                 Log-Message "O banco de dados MySQL em ${DbHost}:${Port} deve estar pronto."
                 return $true
             }
@@ -56,6 +56,10 @@ function Wait-ForDb {
 # --- Início do Script ---
 
 Log-Message "Iniciando o processo de implantação do ambiente distribuído..."
+
+# 0. Limpeza Prévia (Garantir que não há processos fantasmas)
+Log-Message "Executando limpeza prévia do ambiente..."
+& ".\parar_ambiente.ps1" | Out-Null
 
 # 1. Ler IPs
 if (-not (Test-Path $IpsFile)) {
@@ -80,7 +84,7 @@ Log-Message "Endereços IP lidos do arquivo '$IpsFile': $($IPs -join ', ')"
 # 2. Verificar e Instalar Dependências Python
 Log-Message "Verificando dependências Python..."
 if (-not (Check-Command $PythonExec)) {
-    Log-Message "Erro: '$PythonExec' não encontrado. Por favor, instale o Python ou ajuste a variável $PythonExec."
+    Log-Message "Erro: '$PythonExec' não encontrado. Por favor, instale o Python ou ajuste a variável `$PythonExec`."
     exit 1
 }
 
@@ -97,13 +101,23 @@ if (Test-Path "requirements.txt") {
 
 # 3. Subir os Bancos de Dados Docker
 Log-Message "Iniciando contêineres MySQL com o Docker Compose..."
-if (-not (Check-Command "docker-compose")) {
-    Log-Message "Erro: 'docker-compose' não encontrado. Por favor, instale o Docker e o Docker Compose."
+
+$FinalDockerCmd = ""
+if (Check-Command "docker-compose") {
+    $FinalDockerCmd = "docker-compose"
+} elseif (docker compose version 2>&1 | Out-String -Stream | Select-String "version") {
+    $FinalDockerCmd = "docker compose"
+}
+
+if ([string]::IsNullOrEmpty($FinalDockerCmd)) {
+    Log-Message "Erro: 'docker-compose' ou plugin 'docker compose' não encontrado."
     exit 1
 }
-Invoke-Expression "docker-compose up -d"
+
+Log-Message "Usando comando: $FinalDockerCmd"
+Invoke-Expression "$FinalDockerCmd up -d"
 if ($LASTEXITCODE -ne 0) {
-    Log-Message "Erro ao iniciar contêineres Docker. Verifique a instalação do Docker e o 'docker-compose.yml'."
+    Log-Message "Erro ao iniciar contêineres Docker."
     exit 1
 }
 Log-Message "Contêineres MySQL iniciados."
@@ -150,5 +164,5 @@ for ($i = 0; $i -lt $IPs.Count; $i++) {
 
 Log-Message "Todos os nós do middleware foram iniciados em segundo plano."
 Log-Message "Para interagir com o ambiente, use 'python client.py'."
-Log-Message "Para parar o ambiente, execute '.arar_ambiente.ps1'."
+Log-Message "Para parar o ambiente, execute '.\parar_ambiente.ps1'."
 Log-Message "Implantação do ambiente concluída com sucesso!"

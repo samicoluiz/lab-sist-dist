@@ -1,8 +1,8 @@
 # Este arquivo lista os endereços IP dos nós do cluster.
 # Coloque um endereço IP por linha.
 # Exemplo para localhost (ambiente de desenvolvimento/teste):
-127.0.0.1
-127.0.0.1
+192.168.15.4
+192.168.15.20
 127.0.0.1
 
 # Exemplo para máquinas em uma rede real:

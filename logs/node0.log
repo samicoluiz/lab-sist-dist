@@ -1,13 +1,12 @@
-[Nó 0] Conectado ao MySQL na porta 3306
-Exception in thread Thread-1 (executar_servidor):
-Traceback (most recent call last):
-  File "/usr/lib/python3.12/threading.py", line 1073, in _bootstrap_inner
+[Nó 0] Iniciado com estratégia de Conexão Sob Demanda na porta DB 3309
 [Nó 0] Iniciando eleição...
-    self.run()
-  File "/usr/lib/python3.12/threading.py", line 1010, in run
-    self._target(*self._args, **self._kwargs)
-  File "/mnt/c/Users/looui/OneDrive/Documentos/ciencia_da_computacao/lab-sist-dist/lab-sist-dist/node.py", line 91, in executar_servidor
-    self.socket_servidor.bind((self.eu['ip'], self.eu['port']))
-OSError: [Errno 98] Address already in use
-[Nó 0] Nenhum nó superior respondeu. Eu estou assumindo!
-Nó 0 iniciado. Pressione Ctrl+C para parar.
+[Nó 0] Novo Coordenador: 2
+[Nó 0] Novo Coordenador: 2
+[Nó 0] Novo Coordenador: 2
+[Nó 0] Novo Coordenador: 1
+[Nó 0] Executando Query: select * from users;
+[Nó 0] Aplicando replicação do Nó 2
+[Nó 0] Executando Query: select * from users;
+[Nó 0] Executando Query: select * from users;
+[Nó 0] Novo Coordenador: 2
+[Nó 0] Novo Coordenador: 1

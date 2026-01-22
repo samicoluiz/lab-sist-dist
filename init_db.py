@@ -13,7 +13,7 @@ def inicializar():
     
     for n in nos:
         sucesso = False
-        tentativas = 5
+        tentativas = 15
         while tentativas > 0 and not sucesso:
             conn = None
             try:
