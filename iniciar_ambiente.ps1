@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # Script PowerShell para iniciar o ambiente distribuído
 
+# Configurar o console para usar UTF-8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
 # --- Variáveis de Configuração ---
 $IpsFile = "ips.txt"
 $PidFile = "node_pids.tmp"

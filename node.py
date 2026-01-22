@@ -203,7 +203,19 @@ class No:
                 self.id_coordenador = self.id_no
                 self.realizar_broadcast({'type': 'COORDINATOR', 'id': self.id_no})
 
+    def garantir_conexao(self):
+        """Verifica se a conexão com o MySQL está ativa e tenta reconectar se necessário."""
+        try:
+            if self.conexao_bd is None or not self.conexao_bd.is_connected():
+                print(f"[Nó {self.id_no}] Conexão perdida. Tentando reconectar...")
+                self.conexao_bd = self.conectar_bd()
+        except Error:
+            self.conexao_bd = self.conectar_bd()
+
     def executar_query(self, sql):
+        # Garantir que estamos conectados antes de executar
+        self.garantir_conexao()
+        
         # Determinar se é WRITE (escrita) ou READ (leitura)
         eh_escrita = any(palavra in sql.upper() for palavra in ["INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER"])
         
@@ -237,6 +249,9 @@ class No:
             return {"status": "error", "node": self.id_no, "message": str(e)}
 
     def executar_query_replicada(self, msg):
+        # Garantir que estamos conectados antes de replicar
+        self.garantir_conexao()
+        
         sql = msg['sql']
         checksum_recebido = msg['checksum']
         
@@ -265,10 +280,10 @@ if __name__ == "__main__":
         os.makedirs(dir_logs)
     arquivo_log = os.path.join(dir_logs, f"node{id_no_args}.log")
     
-    # Abrir arquivo de log com buffer de linha (buffering=1)
-    fp_log = open(arquivo_log, 'w', buffering=1)
-    sys.stdout = fp_log
-    sys.stderr = fp_log
+    # Abrir arquivo de log com buffer de linha e codificação UTF-8
+    log_fp = open(log_file, 'w', buffering=1, encoding='utf-8')
+    sys.stdout = log_fp
+    sys.stderr = log_fp
 
     no = No(id_no_args)
     
