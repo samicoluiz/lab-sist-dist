@@ -8,292 +8,274 @@ from mysql.connector import Error
 import sys
 import os
 
-class Node:
-    def __init__(self, node_id, config_path='config.json'):
-        self.node_id = node_id
-        self.load_config(config_path)
-        self.me = self.nodes_info[node_id]
-        self.other_nodes = [n for n in self.nodes_info if n['id'] != node_id]
+class No:
+    def __init__(self, id_no, caminho_config='config.json'):
+        self.id_no = id_no
+        self.carregar_configuracao(caminho_config)
+        self.eu = self.info_nos[id_no]
+        self.outros_nos = [n for n in self.info_nos if n['id'] != id_no]
         
-        self.db_config = {
-            'host': self.me['ip'],
+        self.config_bd = {
+            'host': self.eu['ip'],
             'user': 'root',
             'password': 'root',
             'database': 'bd-dist',
-            'port': self.me['db_port']
+            'port': self.eu['db_port']
         }
         
-        self.coordinator_id = None
-        self.alive_nodes = {self.node_id: time.time()}
-        self.is_running = True
+        self.id_coordenador = None
+        self.nos_vivos = {self.id_no: time.time()}
+        self.em_execucao = True
         
-        # Lock for thread-safe operations on state
+        # Lock para operações thread-safe no estado
         self.lock = threading.Lock()
         
-        # Connect to MySQL
-        self.db_conn = self.connect_db()
+        # Conectar ao MySQL
+        self.conexao_bd = self.conectar_bd()
         
-        # Start server thread
-        self.server_thread = threading.Thread(target=self.run_server)
-        self.server_thread.daemon = True
-        self.server_thread.start()
+        # Iniciar thread do servidor
+        self.thread_servidor = threading.Thread(target=self.executar_servidor)
+        self.thread_servidor.daemon = True
+        self.thread_servidor.start()
         
-        # Start heartbeat thread
-        self.hb_thread = threading.Thread(target=self.send_heartbeat)
-        self.hb_thread.daemon = True
-        self.hb_thread.start()
+        # Iniciar thread de heartbeat
+        self.thread_hb = threading.Thread(target=self.enviar_heartbeat)
+        self.thread_hb.daemon = True
+        self.thread_hb.start()
         
-        # Start monitor thread to check node health and trigger election
-        self.monitor_thread = threading.Thread(target=self.monitor_nodes)
-        self.monitor_thread.daemon = True
-        self.monitor_thread.start()
+        # Iniciar thread de monitoramento para verificar saúde dos nós e iniciar eleição
+        self.thread_monitor = threading.Thread(target=self.monitorar_nos)
+        self.thread_monitor.daemon = True
+        self.thread_monitor.start()
         
-        # Initial election
-        self.start_election()
+        # Eleição inicial
+        self.iniciar_eleicao()
 
-    def load_config(self, path):
-        with open(path, 'r') as f:
-            self.nodes_info = json.load(f)['nodes']
+    def carregar_configuracao(self, caminho):
+        with open(caminho, 'r') as f:
+            self.info_nos = json.load(f)['nodes']
 
-    def connect_db(self):
-        while self.is_running:
+    def conectar_bd(self):
+        while self.em_execucao:
             try:
-                conn = mysql.connector.connect(**self.db_config)
+                conn = mysql.connector.connect(**self.config_bd)
                 if conn.is_connected():
-                    print(f"[Nó {self.node_id}] Conectado ao MySQL na porta {self.me['db_port']}")
+                    print(f"[Nó {self.id_no}] Conectado ao MySQL na porta {self.eu['db_port']}")
                     conn.autocommit = True
                     return conn
             except Error as e:
-                print(f"[Nó {self.node_id}] Erro de Conexão MySQL: {e}. Retentando...")
+                print(f"[Nó {self.id_no}] Erro de Conexão MySQL: {e}. Retentando...")
                 time.sleep(5)
         return None
 
-    def calculate_checksum(self, data):
-        return hashlib.md5(data.encode()).hexdigest()
+    def calcular_checksum(self, dados):
+        return hashlib.md5(dados.encode()).hexdigest()
 
-    def send_msg(self, target_node, msg):
+    def enviar_msg(self, no_alvo, msg):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(2.0)
-                s.connect((target_node['ip'], target_node['port']))
+                s.connect((no_alvo['ip'], no_alvo['port']))
                 s.sendall(json.dumps(msg).encode())
         except Exception:
-            # Node might be down
+            # Nó pode estar fora do ar
             pass
 
-    def broadcast(self, msg):
-        for node in self.other_nodes:
-            self.send_msg(node, msg)
+    def realizar_broadcast(self, msg):
+        for no in self.outros_nos:
+            self.enviar_msg(no, msg)
 
-    def run_server(self):
-        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server_socket.bind((self.me['ip'], self.me['port']))
-        self.server_socket.listen(5)
-        print(f"[Nó {self.node_id}] Escutando em {self.me['ip']}:{self.me['port']}")
+    def executar_servidor(self):
+        self.socket_servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket_servidor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket_servidor.bind((self.eu['ip'], self.eu['port']))
+        self.socket_servidor.listen(5)
+        print(f"[Nó {self.id_no}] Escutando em {self.eu['ip']}:{self.eu['port']}")
         
-        self.server_socket.settimeout(1.0)
-        while self.is_running:
+        self.socket_servidor.settimeout(1.0)
+        while self.em_execucao:
             try:
-                conn, addr = self.server_socket.accept()
-                threading.Thread(target=self.handle_client, args=(conn,)).start()
+                conn, addr = self.socket_servidor.accept()
+                threading.Thread(target=self.tratar_cliente, args=(conn,)).start()
             except socket.timeout:
                 continue
             except Exception as e:
-                if self.is_running:
-                    print(f"[Nó {self.node_id}] Erro no servidor: {e}")
+                if self.em_execucao:
+                    print(f"[Nó {self.id_no}] Erro no servidor: {e}")
 
-    def stop(self):
-        self.is_running = False
-        if hasattr(self, 'server_socket'):
-            self.server_socket.close()
-        if self.db_conn:
-            self.db_conn.close()
-        print(f"[Nó {self.node_id}] Parado.")
+    def parar(self):
+        self.em_execucao = False
+        if hasattr(self, 'socket_servidor'):
+            self.socket_servidor.close()
+        if self.conexao_bd:
+            self.conexao_bd.close()
+        print(f"[Nó {self.id_no}] Parado.")
 
-    def handle_client(self, conn):
-        with conn:
-            data = conn.recv(4096)
-            if not data:
-                return
-            msg = json.loads(data.decode())
-            self.process_message(msg)
+    def tratar_cliente(self, conn):
+        """
+        Lida com conexões de entrada de outros nós ou clientes.
+        Processa a mensagem e envia uma resposta se necessário.
+        """
+        try:
+            with conn:
+                dados = conn.recv(8192)
+                if not dados:
+                    return
+                msg = json.loads(dados.decode())
+                
+                # Tratar Queries de Cliente/Externas
+                if msg.get('type') == 'CLIENT_QUERY':
+                    resposta = self.executar_query(msg['sql'])
+                    conn.sendall(json.dumps(resposta).encode())
+                
+                elif msg.get('type') == 'GET_COORDINATOR':
+                    resposta = {'status': 'success', 'coordinator_id': self.id_coordenador}
+                    conn.sendall(json.dumps(resposta).encode())
+                
+                # Tratar Mensagens Internas
+                else:
+                    self.processar_mensagem(msg)
+                    
+        except Exception as e:
+            print(f"[Nó {self.id_no}] Erro ao processar mensagem: {e}")
 
-    def process_message(self, msg):
-        m_type = msg.get('type')
+    def processar_mensagem(self, msg):
+        tipo_msg = msg.get('type')
         
-        if m_type == 'HEARTBEAT':
+        if tipo_msg == 'HEARTBEAT':
             with self.lock:
-                self.alive_nodes[msg['id']] = time.time()
+                self.nos_vivos[msg['id']] = time.time()
                 
-        elif m_type == 'ELECTION':
-            if msg['id'] < self.node_id:
-                # Answer OK and start own election
-                sender = next(n for n in self.nodes_info if n['id'] == msg['id'])
-                self.send_msg(sender, {'type': 'ELECTION_OK', 'id': self.node_id})
-                self.start_election()
+        elif tipo_msg == 'ELECTION':
+            if msg['id'] < self.id_no:
+                # Responder OK e iniciar própria eleição
+                remetente = next(n for n in self.info_nos if n['id'] == msg['id'])
+                self.enviar_msg(remetente, {'type': 'ELECTION_OK', 'id': self.id_no})
+                self.iniciar_eleicao()
                 
-        elif m_type == 'COORDINATOR':
+        elif tipo_msg == 'COORDINATOR':
             with self.lock:
-                self.coordinator_id = msg['id']
-                print(f"[Nó {self.node_id}] Novo Coordenador: {self.coordinator_id}")
+                self.id_coordenador = msg['id']
+                print(f"[Nó {self.id_no}] Novo Coordenador: {self.id_coordenador}")
                 
-        elif m_type == 'REPLICATE':
-            self.execute_replicated_query(msg)
+        elif tipo_msg == 'REPLICATE':
+            self.executar_query_replicada(msg)
 
-    def send_heartbeat(self):
-        while self.is_running:
-            self.broadcast({'type': 'HEARTBEAT', 'id': self.node_id})
+    def enviar_heartbeat(self):
+        while self.em_execucao:
+            self.realizar_broadcast({'type': 'HEARTBEAT', 'id': self.id_no})
             time.sleep(2)
 
-    def monitor_nodes(self):
-        while self.is_running:
+    def monitorar_nos(self):
+        while self.em_execucao:
             time.sleep(5)
-            now = time.time()
+            agora = time.time()
             with self.lock:
-                dead_nodes = [nid for nid, last_seen in self.alive_nodes.items() 
-                              if now - last_seen > 10 and nid != self.node_id]
-                for nid in dead_nodes:
-                    print(f"[Nó {self.node_id}] Nó {nid} está fora do ar")
-                    del self.alive_nodes[nid]
-                    if self.coordinator_id == nid:
-                        self.coordinator_id = None
-                        self.start_election()
+                nos_mortos = [nid for nid, visto_por_ultimo in self.nos_vivos.items() 
+                              if agora - visto_por_ultimo > 10 and nid != self.id_no]
+                for nid in nos_mortos:
+                    print(f"[Nó {self.id_no}] Nó {nid} está fora do ar")
+                    del self.nos_vivos[nid]
+                    if self.id_coordenador == nid:
+                        self.id_coordenador = None
+                        self.iniciar_eleicao()
 
-    def start_election(self):
-        print(f"[Nó {self.node_id}] Iniciando eleição...")
-        higher_nodes = [n for n in self.other_nodes if n['id'] > self.node_id]
-        if not higher_nodes:
-            # I am the highest, I am the coordinator
-            self.coordinator_id = self.node_id
-            self.broadcast({'type': 'COORDINATOR', 'id': self.node_id})
-            print(f"[Nó {self.node_id}] Eu sou o coordenador")
+    def iniciar_eleicao(self):
+        print(f"[Nó {self.id_no}] Iniciando eleição...")
+        nos_superiores = [n for n in self.outros_nos if n['id'] > self.id_no]
+        if not nos_superiores:
+            # Eu sou o maior, eu sou o coordenador
+            self.id_coordenador = self.id_no
+            self.realizar_broadcast({'type': 'COORDINATOR', 'id': self.id_no})
+            print(f"[Nó {self.id_no}] Eu sou o coordenador")
         else:
-            for n in higher_nodes:
-                self.send_msg(n, {'type': 'ELECTION', 'id': self.node_id})
+            for n in nos_superiores:
+                self.enviar_msg(n, {'type': 'ELECTION', 'id': self.id_no})
             
-            # Wait for OK
+            # Aguardar por OK
             time.sleep(2.0)
             
-            # If after waiting, I still don't know who the coordinator is, 
-            # and I haven't received a 'COORDINATOR' message from someone bigger,
-            # it means the bigger nodes are dead. I take over.
-            if self.coordinator_id is None:
-                print(f"[Nó {self.node_id}] Nenhum nó superior respondeu. Eu estou assumindo!")
-                self.coordinator_id = self.node_id
-                self.broadcast({'type': 'COORDINATOR', 'id': self.node_id})
+            # Se após esperar, eu ainda não sei quem é o coordenador,
+            # e não recebi mensagem 'COORDINATOR' de alguém maior,
+            # significa que os nós maiores morreram. Eu assumo.
+            if self.id_coordenador is None:
+                print(f"[Nó {self.id_no}] Nenhum nó superior respondeu. Eu estou assumindo!")
+                self.id_coordenador = self.id_no
+                self.realizar_broadcast({'type': 'COORDINATOR', 'id': self.id_no})
 
-    def execute_query(self, sql):
-        # Determine if it's WRITE or READ
-        is_write = any(keyword in sql.upper() for keyword in ["INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER"])
+    def executar_query(self, sql):
+        # Determinar se é WRITE (escrita) ou READ (leitura)
+        eh_escrita = any(palavra in sql.upper() for palavra in ["INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER"])
         
-        checksum = self.calculate_checksum(sql)
-        print(f"[Nó {self.node_id}] QUERY RECEBIDA: {sql}")
+        checksum = self.calcular_checksum(sql)
+        print(f"[Nó {self.id_no}] QUERY RECEBIDA: {sql}")
         
         try:
-            cursor = self.db_conn.cursor(dictionary=True)
+            cursor = self.conexao_bd.cursor(dictionary=True)
             cursor.execute(sql)
             
-            result = None
-            if not is_write:
-                result = cursor.fetchall()
-                print(f"[Nó {self.node_id}] Operação de LEITURA executada localmente. Linhas retornadas: {len(result)}")
+            resultado = None
+            if not eh_escrita:
+                resultado = cursor.fetchall()
+                print(f"[Nó {self.id_no}] Operação de LEITURA executada localmente. Linhas retornadas: {len(resultado)}")
             
-            if is_write:
-                # Replicate
-                print(f"[Nó {self.node_id}] Operação de ESCRITA. Transmitindo conteúdo para replicação...")
-                print(f"[Nó {self.node_id}] Checksum: {checksum}")
-                self.broadcast({
+            if eh_escrita:
+                # Replicar
+                print(f"[Nó {self.id_no}] Operação de ESCRITA. Transmitindo conteúdo para replicação...")
+                print(f"[Nó {self.id_no}] Checksum: {checksum}")
+                self.realizar_broadcast({
                     'type': 'REPLICATE',
                     'sql': sql,
                     'checksum': checksum,
-                    'origin': self.node_id
+                    'origin': self.id_no
                 })
-                print(f"[Nó {self.node_id}] Broadcast de replicação finalizado.")
+                print(f"[Nó {self.id_no}] Broadcast de replicação finalizado.")
             
-            return {"status": "success", "node": self.node_id, "data": result}
+            return {"status": "success", "node": self.id_no, "data": resultado}
         except Error as e:
-            print(f"[Nó {self.node_id}] Erro SQL: {e}")
-            return {"status": "error", "node": self.node_id, "message": str(e)}
+            print(f"[Nó {self.id_no}] Erro SQL: {e}")
+            return {"status": "error", "node": self.id_no, "message": str(e)}
 
-    def execute_replicated_query(self, msg):
+    def executar_query_replicada(self, msg):
         sql = msg['sql']
-        received_checksum = msg['checksum']
+        checksum_recebido = msg['checksum']
         
-        # Verify integrity
-        if self.calculate_checksum(sql) != received_checksum:
-            print(f"[Nó {self.node_id}] Divergência de Checksum para a query: {sql}")
+        # Verificar integridade
+        if self.calcular_checksum(sql) != checksum_recebido:
+            print(f"[Nó {self.id_no}] Divergência de Checksum para a query: {sql}")
             return
             
         try:
-            print(f"[Nó {self.node_id}] Executando query replicada do Nó {msg['origin']}")
-            cursor = self.db_conn.cursor()
+            print(f"[Nó {self.id_no}] Executando query replicada do Nó {msg['origin']}")
+            cursor = self.conexao_bd.cursor()
             cursor.execute(sql)
         except Error as e:
-            print(f"[Nó {self.node_id}] Erro na replicação: {e}")
+            print(f"[Nó {self.id_no}] Erro na replicação: {e}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Uso: python node.py <id_do_no>")
         sys.exit(1)
     
-    node_id = int(sys.argv[1])
+    id_no_args = int(sys.argv[1])
 
-    # Redirect stdout and stderr to a log file
-    log_dir = "logs"
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    log_file = os.path.join(log_dir, f"node{node_id}.log")
+    # Redirecionar stdout e stderr para um arquivo de log
+    dir_logs = "logs"
+    if not os.path.exists(dir_logs):
+        os.makedirs(dir_logs)
+    arquivo_log = os.path.join(dir_logs, f"node{id_no_args}.log")
     
-    # Open the log file and redirect stdout/stderr
-    log_fp = open(log_file, 'w')
-    sys.stdout = log_fp
-    sys.stderr = log_fp
+    # Abrir arquivo de log com buffer de linha (buffering=1)
+    fp_log = open(arquivo_log, 'w', buffering=1)
+    sys.stdout = fp_log
+    sys.stderr = fp_log
 
-    node = Node(node_id)
+    no = No(id_no_args)
     
-    # Keep the main thread alive to handle client queries via another socket 
-    # OR we can just use the same server socket and add a 'CLIENT_QUERY' type.
-    
-    # Adding CLIENT_QUERY handling to process_message
-    def extended_process_message(self, msg, conn=None):
-        m_type = msg.get('type')
-        if m_type == 'CLIENT_QUERY':
-            response = self.execute_query(msg['sql'])
-            if conn:
-                conn.sendall(json.dumps(response).encode())
-        else:
-            self.process_message(msg)
-
-    # Patching the handle_client to support response
-    def patched_handle_client(self, conn):
-        try:
-            data = conn.recv(8192)
-            if not data: return
-            msg = json.loads(data.decode())
-            
-            if msg.get('type') == 'CLIENT_QUERY':
-                # Load balancing: if I'm busy (simulated) or just round-robin
-                # For this lab, let's just execute locally or if it's a read, 
-                # maybe give it to someone else if we want load balancing.
-                response = self.execute_query(msg['sql'])
-                conn.sendall(json.dumps(response).encode())
-            elif msg.get('type') == 'GET_COORDINATOR':
-                response = {'status': 'success', 'coordinator_id': self.coordinator_id}
-                conn.sendall(json.dumps(response).encode())
-            else:
-                self.process_message(msg)
-        except Exception as e:
-            print(f"Erro ao processar mensagem: {e}")
-        finally:
-            conn.close()
-
-    Node.handle_client = patched_handle_client
-    
-    print(f"Nó {node_id} iniciado. Pressione Ctrl+C para parar.")
+    print(f"Nó {id_no_args} iniciado. Pressione Ctrl+C para parar.")
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        node.is_running = False
+        no.parar()
         print("Nó parando...")

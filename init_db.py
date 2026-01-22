@@ -1,11 +1,16 @@
 import mysql.connector
 import json
 
-def init():
-    with open('config.json', 'r') as f:
-        nodes = json.load(f)['nodes']
+def inicializar():
+    try:
+        with open('config.json', 'r') as f:
+            nos = json.load(f)['nodes']
+    except FileNotFoundError:
+        print("Erro: 'config.json' não encontrado. Execute 'iniciar_ambiente' ou gere-o manualmente.")
+        return
     
-    for n in nodes:
+    for n in nos:
+        conn = None
         try:
             conn = mysql.connector.connect(
                 host=n['ip'],
@@ -14,12 +19,17 @@ def init():
                 database='bd-dist',
                 port=n['db_port']
             )
-            cursor = conn.cursor()
-            cursor.execute("CREATE TABLE IF NOT EXISTS users (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), email VARCHAR(255))")
+            # Usando 'with' para garantir o fechamento do cursor
+            with conn.cursor() as cursor:
+                cursor.execute("CREATE TABLE IF NOT EXISTS users (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), email VARCHAR(255))")
+            
             print(f"Banco de dados do Nó {n['id']} inicializado.")
-            conn.close()
+            
         except Exception as e:
             print(f"Erro ao inicializar o Nó {n['id']}: {e}")
+        finally:
+            if conn and conn.is_connected():
+                conn.close()
 
 if __name__ == "__main__":
-    init()
+    inicializar()

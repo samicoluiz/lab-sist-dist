@@ -10,32 +10,32 @@ import sys
 # Adiciona o diretório pai ao sys.path para importar o node
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from node import Node
+from node import No
 
-class TestDistDB(unittest.TestCase):
+class TesteBancoDistribuido(unittest.TestCase):
     def setUp(self):
-        self.nodes = []
+        self.nos = []
         self.mock_conns = []
         self.mock_cursors = []
-        self.config_file = f"test_config_{threading.get_ident()}.json"
+        self.arquivo_config = f"test_config_{threading.get_ident()}.json"
 
     def tearDown(self):
-        for node in self.nodes:
-            node.stop()
-        if os.path.exists(self.config_file):
-            os.remove(self.config_file)
+        for no in self.nos:
+            no.parar()
+        if os.path.exists(self.arquivo_config):
+            os.remove(self.arquivo_config)
         time.sleep(1)
 
-    def create_nodes_with_config(self, node_ids, base_port):
-        nodes_info = []
-        for i in node_ids:
-            nodes_info.append({"id": i, "ip": "127.0.0.1", "port": base_port + i, "db_port": 3306 + i})
+    def criar_nos_com_config(self, ids_nos, porta_base):
+        info_nos = []
+        for i in ids_nos:
+            info_nos.append({"id": i, "ip": "127.0.0.1", "port": porta_base + i, "db_port": 3306 + i})
         
-        with open(self.config_file, 'w') as f:
-            json.dump({"nodes": nodes_info}, f)
+        with open(self.arquivo_config, 'w') as f:
+            json.dump({"nodes": info_nos}, f)
 
-        created_nodes = []
-        for i in node_ids:
+        nos_criados = []
+        for i in ids_nos:
             mock_conn = MagicMock()
             mock_cursor = MagicMock()
             mock_conn.cursor.return_value = mock_cursor
@@ -44,68 +44,68 @@ class TestDistDB(unittest.TestCase):
             self.mock_cursors.append(mock_cursor)
             
             with patch('mysql.connector.connect', return_value=mock_conn):
-                node = Node(i, config_path=self.config_file)
-                self.nodes.append(node)
-                created_nodes.append(node)
-        return created_nodes
+                no = No(i, caminho_config=self.arquivo_config)
+                self.nos.append(no)
+                nos_criados.append(no)
+        return nos_criados
 
-    def test_election_and_coordinator(self):
+    def test_eleicao_e_coordenador(self):
         print("\n--- Testando Eleição ---")
-        base_port = 7000
-        created = self.create_nodes_with_config([0, 1, 2], base_port)
-        n0, n1, n2 = created
+        porta_base = 7000
+        criados = self.criar_nos_com_config([0, 1, 2], porta_base)
+        n0, n1, n2 = criados
 
         time.sleep(5)
 
-        print(f"Coordenador do Nó 0: {n0.coordinator_id}")
-        print(f"Coordenador do Nó 1: {n1.coordinator_id}")
-        print(f"Coordenador do Nó 2: {n2.coordinator_id}")
+        print(f"Coordenador do Nó 0: {n0.id_coordenador}")
+        print(f"Coordenador do Nó 1: {n1.id_coordenador}")
+        print(f"Coordenador do Nó 2: {n2.id_coordenador}")
 
-        self.assertEqual(n0.coordinator_id, 2)
-        self.assertEqual(n1.coordinator_id, 2)
-        self.assertEqual(n2.coordinator_id, 2)
+        self.assertEqual(n0.id_coordenador, 2)
+        self.assertEqual(n1.id_coordenador, 2)
+        self.assertEqual(n2.id_coordenador, 2)
 
-    def test_replication(self):
+    def test_replicacao(self):
         print("\n--- Testando Replicação ---")
-        base_port = 8000
-        created = self.create_nodes_with_config([0, 1, 2], base_port)
-        n0, n1, n2 = created
+        porta_base = 8000
+        criados = self.criar_nos_com_config([0, 1, 2], porta_base)
+        n0, n1, n2 = criados
         
         time.sleep(3)
 
         sql = "INSERT INTO users (name) VALUES ('Teste')"
         print(f"Executando '{sql}' no Nó 0")
-        response = n0.execute_query(sql)
+        resposta = n0.executar_query(sql)
 
-        self.assertEqual(response['status'], 'success')
+        self.assertEqual(resposta['status'], 'success')
         time.sleep(2)
 
         self.mock_cursors[0].execute.assert_called_with(sql)
         
-        found_n1 = any(call.args[0] == sql for call in self.mock_cursors[1].execute.call_args_list)
-        found_n2 = any(call.args[0] == sql for call in self.mock_cursors[2].execute.call_args_list)
+        encontrado_n1 = any(call.args[0] == sql for call in self.mock_cursors[1].execute.call_args_list)
+        encontrado_n2 = any(call.args[0] == sql for call in self.mock_cursors[2].execute.call_args_list)
         
-        print(f"Replicado para o Nó 1: {found_n1}")
-        print(f"Replicado para o Nó 2: {found_n2}")
+        print(f"Replicado para o Nó 1: {encontrado_n1}")
+        print(f"Replicado para o Nó 2: {encontrado_n2}")
 
-        self.assertTrue(found_n1)
-        self.assertTrue(found_n2)
+        self.assertTrue(encontrado_n1)
+        self.assertTrue(encontrado_n2)
 
-    def test_read_operation(self):
+    def test_operacao_leitura(self):
         print("\n--- Testando Operação de Leitura ---")
-        base_port = 9000
-        created = self.create_nodes_with_config([0, 1], base_port)
-        n0, n1 = created
+        porta_base = 9000
+        criados = self.criar_nos_com_config([0, 1], porta_base)
+        n0, n1 = criados
         
         time.sleep(2)
         self.mock_cursors[0].fetchall.return_value = [{'id': 1, 'name': 'Luiz'}]
 
         sql = "SELECT * FROM users"
         print(f"Executando '{sql}' no Nó 0")
-        response = n0.execute_query(sql)
+        resposta = n0.executar_query(sql)
 
-        self.assertEqual(response['status'], 'success')
-        self.assertEqual(response['data'], [{'id': 1, 'name': 'Luiz'}])
+        self.assertEqual(resposta['status'], 'success')
+        self.assertEqual(resposta['data'], [{'id': 1, 'name': 'Luiz'}])
         
         self.mock_cursors[1].reset_mock()
         time.sleep(1)
