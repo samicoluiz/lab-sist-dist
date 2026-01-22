@@ -70,7 +70,17 @@ Ao final, os nós estarão rodando em segundo plano. Os logs de cada nó serão 
 
 ### Passo 3: Interagir com o Banco de Dados
 
-Com o ambiente rodando, você pode usar o cliente para enviar comandos SQL:
+Com o ambiente rodando, você pode usar a interface de terminal (TUI) para enviar comandos SQL. Recomendamos o uso do novo cliente TUI para uma melhor experiência:
+
+```bash
+python tui_client.py
+```
+
+O `tui_client.py` oferece dois modos:
+- **Perfil de Uso**: Seleciona automaticamente o coordenador e permite focar apenas nas queries SQL.
+- **Perfil de Teste**: Permite escolher manualmente qual nó receberá a query, ideal para testar falhas e consistência.
+
+Caso prefira o cliente simplificado original:
 ```bash
 python client.py
 ```

@@ -1,12 +1,12 @@
 [Nó 2] Iniciado com estratégia de Conexão Sob Demanda na porta DB 3308
 [Nó 2] Iniciando eleição...
-[Nó 2] Eu sou o coordenador
 [Nó 2] Iniciando eleição...
+[Nó 2] Erro ao enviar COORDINATOR para Nó 1 (192.168.15.20): timed out
+[Nó 2] Eu sou o coordenador
+[Nó 2] Erro ao enviar ELECTION_OK para Nó 1 (192.168.15.20): timed out
 [Nó 2] Iniciando eleição...
-[Nó 2] Eu sou o coordenador
-[Nó 2] Eu sou o coordenador
 [Nó 2] Novo Coordenador: 1
-[Nó 2] Executando Query: select * from users;
-[Nó 2] Executando Query: INSERT INTO users (name, email) VALUES ('Ada Lovelace', 'ada@babbage.com');
-[Nó 2] Replicando Checksum: 826b2d6f52538c8a4b3e24f37847b011
-[Nó 2] Executando Query: select * from users;
+[Nó 2] Erro ao enviar COORDINATOR para Nó 1 (192.168.15.20): timed out
+[Nó 2] Eu sou o coordenador
+[Nó 2] Erro ao enviar COORDINATOR para Nó 1 (192.168.15.20): timed out
+[Nó 2] Eu sou o coordenador
