@@ -281,7 +281,7 @@ if __name__ == "__main__":
     arquivo_log = os.path.join(dir_logs, f"node{id_no_args}.log")
     
     # Abrir arquivo de log com buffer de linha e codificação UTF-8
-    log_fp = open(log_file, 'w', buffering=1, encoding='utf-8')
+    log_fp = open(arquivo_log, 'w', buffering=1, encoding='utf-8')
     sys.stdout = log_fp
     sys.stderr = log_fp
 
