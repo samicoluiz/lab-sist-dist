@@ -106,7 +106,7 @@ if ($LASTEXITCODE -ne 0) {
 Log-Message "Contêineres MySQL iniciados."
 
 # 4. Aguardar a prontidão dos Bancos de Dados
-if (-not (Wait-ForDb $IPs[0] 3306)) {
+if (-not (Wait-ForDb $IPs[0] 3309)) {
     Log-Message "Falha na inicialização do ambiente."
     exit 1
 }

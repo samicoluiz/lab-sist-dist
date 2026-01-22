@@ -134,9 +134,9 @@ fi
 log_message "Contêineres MySQL iniciados."
 
 # 4. Aguardar a prontidão dos Bancos de Dados
-# Assume que o primeiro IP na lista e a porta 3306 serão suficientes para verificar a prontidão.
-# Em um cenário real multi-máquina, seria necessário aguardar a porta 3306 de cada IP.
-wait_for_db "${IPS[0]}" 3306
+# Assume que o primeiro IP na lista e a porta 3309 serão suficientes para verificar a prontidão.
+# Em um cenário real multi-máquina, seria necessário aguardar a porta correspondente de cada IP.
+wait_for_db "${IPS[0]}" 3309
 if [ $? -ne 0 ]; then
     log_message "Falha na inicialização do ambiente."
     exit 1

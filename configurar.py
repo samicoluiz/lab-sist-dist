@@ -33,14 +33,18 @@ def gerar_config(ips):
 
     nodes_config = []
     base_port = 5000
-    base_db_port = 3306
+    # Portas do Docker: db1->3309 (evita conflito com 3306 local), db2->3307, db3->3308
+    db_ports = [3309, 3307, 3308]
 
     for i, ip in enumerate(ips):
+        # Se houver mais IPs que portas definidas, recicla (apenas fallback)
+        porta_db = db_ports[i % len(db_ports)]
+        
         node_info = {
             "id": i,
             "ip": ip,
             "port": base_port + i,
-            "db_port": base_db_port + i
+            "db_port": porta_db
         }
         nodes_config.append(node_info)
 
