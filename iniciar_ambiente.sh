@@ -20,17 +20,24 @@ wait_for_db() {
     local host=$1
     local port=$2
     log_message "Aguardando o banco de dados MySQL em $host:$port ficar disponível..."
-    timeout=60
-    while ! nc -z "$host" "$port" >/dev/null 2>&1 && [ "$timeout" -gt 0 ]; do
+    log_message "DEBUG: Testando comando nc..."
+    which nc
+    nc -z "$host" "$port" && log_message "DEBUG: nc test succeeded" || log_message "DEBUG: nc test failed"
+    local wait_timeout=120
+    local count=0
+    while [ "$count" -lt "$wait_timeout" ]; do
+        if nc -z "$host" "$port" >/dev/null 2>&1; then
+            log_message "Banco de dados MySQL em $host:$port está disponível."
+            return 0
+        fi
         sleep 1
-        timeout=$((timeout - 1))
+        count=$((count + 1))
+        if [ $((count % 10)) -eq 0 ]; then
+            log_message "Ainda aguardando... ($count segundos)"
+        fi
     done
-    if [ "$timeout" -eq 0 ]; then
-        log_message "Erro: O banco de dados MySQL em $host:$port não está respondendo após 60 segundos."
-        return 1
-    fi
-    log_message "Banco de dados MySQL em $host:$port está disponível."
-    return 0
+    log_message "Erro: O banco de dados MySQL em $host:$port não está respondendo após $wait_timeout segundos."
+    return 1
 }
 
 # --- Início do Script ---
@@ -44,6 +51,8 @@ if [ ! -f "$IPS_FILE" ]; then
 fi
 IPS=()
 while IFS= read -r line; do
+    # Remover carriage return (Windows line ending)
+    line="${line%$'\r'}"
     # Ignorar linhas vazias e comentários
     [[ -z "$line" || "$line" =~ ^# ]] && continue
     IPS+=("$line")

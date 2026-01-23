@@ -1,0 +1,21 @@
+# Configuracao WSL2 para melhor compatibilidade com Docker e port forwarding
+# Este arquivo deve estar em: C:\Users\<seu-usuario>\.wslconfig
+# Apos alterar, execute: wsl --shutdown e reinicie o WSL
+
+[wsl2]
+# Memoria alocada para o WSL2
+memory=4GB
+
+# Processadores
+processors=2
+
+# Modo de rede padrao (NAT) - melhor para port forwarding
+# networkingMode=mirrored <- COMENTADO para usar NAT padrao
+
+# Permite acesso localhost automatico
+localhostForwarding=true
+
+# DNS
+#dnsTunneling=true
+#firewall=true
+#autoProxy=true
