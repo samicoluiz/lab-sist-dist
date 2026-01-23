@@ -9,3 +9,5 @@ Traceback (most recent call last):
   File "C:\Users\looui\OneDrive\Documentos\ciencia_da_computacao\lab-sist-dist\lab-sist-dist\node.py", line 80, in executar_servidor
     sock.bind((self.eu['ip'], self.eu['port']))
 OSError: [WinError 10049] O endereço solicitado não é válido no contexto
+[Nó 1] Erro ao enviar ELECTION para Nó 2 (192.168.15.20): timed out
+[Nó 1] Erro ao enviar COORDINATOR para Nó 2 (192.168.15.20): timed out

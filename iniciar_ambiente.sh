@@ -134,11 +134,10 @@ fi
 log_message "Contêineres MySQL iniciados."
 
 # 4. Aguardar a prontidão dos Bancos de Dados
-# Assume que o primeiro IP na lista e a porta 3309 serão suficientes para verificar a prontidão.
-# Em um cenário real multi-máquina, seria necessário aguardar a porta correspondente de cada IP.
-wait_for_db "${IPS[0]}" 3309
+# Em máquinas diferentes, cada uma deve esperar pelo seu próprio MySQL local (127.0.0.1)
+wait_for_db "127.0.0.1" 3307 || wait_for_db "127.0.0.1" 3308 || wait_for_db "127.0.0.1" 3309
 if [ $? -ne 0 ]; then
-    log_message "Falha na inicialização do ambiente."
+    log_message "Falha na inicialização do ambiente (banco de dados local não responde)."
     exit 1
 fi
 
