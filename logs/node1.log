@@ -1,0 +1,11 @@
+[Nó 1] Iniciado com estratégia de Conexão Sob Demanda na porta DB 3307
+Exception in thread Thread-1 (executar_servidor):
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/threading.py", line 1073, in _boo[Nó 1] Novo Coordenador: 2
+[Nó 1] Novo Coordenador: 2
+[Nó 1] Novo Coordenador: 0
+[Nó 1] Executando Query: select * from users;
+[Nó 1] Executando Query: insert into users (name,email) values ('work-pc-test','work@email.com');
+[Nó 1] Replicando Checksum: a3e1852ae1bf52c7e903206038f4bb39
+[Nó 1] Executando Query: select * from users;
+Address already in use

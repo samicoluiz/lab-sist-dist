@@ -5,7 +5,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: bd-dist
-      MYSQL_ROOT_HOST: '%'
+      MYSQL_ROOT_HOST: "%"
     ports:
       - "0.0.0.0:3309:3306"
   db2:
@@ -14,7 +14,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: bd-dist
-      MYSQL_ROOT_HOST: '%'
+      MYSQL_ROOT_HOST: "%"
     ports:
       - "0.0.0.0:3307:3306"
   db3:
@@ -23,6 +23,6 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: bd-dist
-      MYSQL_ROOT_HOST: '%'
+      MYSQL_ROOT_HOST: "%"
     ports:
       - "0.0.0.0:3308:3306"

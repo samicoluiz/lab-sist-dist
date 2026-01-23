@@ -1,0 +1,14 @@
+[Nó 0] Iniciado com estratégia de Conexão Sob Demanda na porta DB 3309
+Exception in thread Thread-1 (executar_servidor):
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/threading.py", line 1073, in _bootstrap_inner
+    self.run()
+[Nó 0] Novo Coordenador: 2
+[Nó 0] Novo Coordenador: 2
+[Nó 0] Novo Coordenador: 2
+[Nó 0] Novo Coordenador: 2
+[Nó 0] Novo Coordenador: 1
+[Nó 0] Aplicando replicação do Nó 1
+Projetos/lab-sist-dist/node.py", line 80, in executar_servidor
+    sock.bind((self.eu['ip'], self.eu['port']))
+OSError: [Errno 98] Address already in use

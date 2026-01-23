@@ -77,7 +77,9 @@ class No:
     def executar_servidor(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((self.eu['ip'], self.eu['port']))
+        # Sempre escuta em todas as interfaces (0.0.0.0) para aceitar conexões externas
+        # O IP configurado em self.eu['ip'] é usado apenas para comunicação entre nós
+        sock.bind(('0.0.0.0', self.eu['port']))
         sock.listen(10)
         sock.settimeout(1.0)
         while self.em_execucao:
