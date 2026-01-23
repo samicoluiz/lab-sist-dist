@@ -75,38 +75,58 @@ class No:
         self.iniciar_eleicao()
 
     def executar_servidor(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        # Sempre escuta em todas as interfaces (0.0.0.0) para aceitar conexões externas
-        # O IP configurado em self.eu['ip'] é usado apenas para comunicação entre nós
-        sock.bind(('0.0.0.0', self.eu['port']))
-        sock.listen(10)
-        sock.settimeout(1.0)
-        while self.em_execucao:
-            try:
-                conn, _ = sock.accept()
-                threading.Thread(target=self.tratar_cliente, args=(conn,), daemon=True).start()
-            except socket.timeout:
-                continue
-            except Exception as e:
-                if self.em_execucao: print(f"[Nó {self.id_no}] Erro no socket: {e}")
+        print(f"[Nó {self.id_no}] Iniciando thread do servidor...", flush=True)
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            # Sempre escuta em todas as interfaces (0.0.0.0) para aceitar conexões externas
+            # O IP configurado em self.eu['ip'] é usado apenas para comunicação entre nós
+            sock.bind(('0.0.0.0', self.eu['port']))
+            sock.listen(10)
+            sock.settimeout(1.0)
+            print(f"[Nó {self.id_no}] Servidor escutando na porta {self.eu['port']}", flush=True)
+            counter = 0
+            while self.em_execucao:
+                try:
+                    counter += 1
+                    if counter % 10 == 0:
+                        print(f"[Nó {self.id_no}] Server loop iteration {counter}, em_execucao={self.em_execucao}", flush=True)
+                    conn, addr = sock.accept()
+                    print(f"[Nó {self.id_no}] Conexão aceita de {addr}", flush=True)
+                    threading.Thread(target=self.tratar_cliente, args=(conn,), daemon=True).start()
+                except socket.timeout:
+                    continue
+                except Exception as e:
+                    if self.em_execucao: print(f"[Nó {self.id_no}] Erro no socket: {e}", flush=True)
+        except Exception as e:
+            print(f"[Nó {self.id_no}] Erro fatal no servidor: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
 
     def tratar_cliente(self, conn):
         try:
-            with conn:
-                dados = conn.recv(8192)
-                if not dados: return
-                msg = json.loads(dados.decode())
-                if msg.get('type') == 'CLIENT_QUERY':
-                    resposta = self.executar_query(msg['sql'])
-                    conn.sendall(json.dumps(resposta).encode())
-                elif msg.get('type') == 'GET_COORDINATOR':
-                    resposta = {'status': 'success', 'coordinator_id': self.id_coordenador}
-                    conn.sendall(json.dumps(resposta).encode())
-                else:
-                    self.processar_mensagem(msg)
+            dados = conn.recv(8192)
+            if not dados: 
+                print(f"[Nó {self.id_no}] Nenhum dado recebido do cliente", flush=True)
+                conn.close()
+                return
+            msg = json.loads(dados.decode())
+            print(f"[Nó {self.id_no}] Mensagem recebida: {msg.get('type')}", flush=True)
+            if msg.get('type') == 'CLIENT_QUERY':
+                resposta = self.executar_query(msg['sql'])
+                print(f"[Nó {self.id_no}] Enviando resposta: {resposta.get('status')}", flush=True)
+                conn.sendall(json.dumps(resposta).encode())
+            elif msg.get('type') == 'GET_COORDINATOR':
+                resposta = {'status': 'success', 'coordinator_id': self.id_coordenador}
+                conn.sendall(json.dumps(resposta).encode())
+            else:
+                self.processar_mensagem(msg)
         except Exception as e:
-            print(f"[Nó {self.id_no}] Erro ao tratar cliente: {e}")
+            print(f"[Nó {self.id_no}] Erro ao tratar cliente: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+        finally:
+            conn.close()
 
     def processar_mensagem(self, msg):
         tipo_msg = msg.get('type')
@@ -215,9 +235,12 @@ if __name__ == "__main__":
     if not os.path.exists(dir_logs): os.makedirs(dir_logs)
     # Garante fechamento correto do arquivo de log ao encerrar
     arquivo_log_path = os.path.join(dir_logs, f"node{id_no_args}.log")
-    fp_log = open(arquivo_log_path, 'w', buffering=1, encoding='utf-8')
-    sys.stdout = fp_log
-    sys.stderr = fp_log
+    # Open in unbuffered binary mode first
+    fp_log = open(arquivo_log_path, 'wb', buffering=0)
+    # Use unbuffered stdout/stderr
+    import io
+    sys.stdout = io.TextIOWrapper(fp_log, encoding='utf-8', line_buffering=True, write_through=True)
+    sys.stderr = sys.stdout
 
     no = No(id_no_args, caminho_config)
     try:
@@ -225,4 +248,6 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         no.parar()
     finally:
+        sys.stdout.flush()
+        sys.stderr.flush()
         fp_log.close()
