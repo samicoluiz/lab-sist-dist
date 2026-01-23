@@ -63,6 +63,7 @@ if [ ${#IPS[@]} -eq 0 ]; then
     exit 1
 fi
 
+log_message "Total de IPs lidos: ${#IPS[@]}"
 log_message "Endereços IP lidos do arquivo '$IPS_FILE': ${IPS[@]}"
 
 # 2. Configurar Ambiente Virtual (Venv) para evitar erro PEP 668
@@ -169,21 +170,64 @@ if [ $? -ne 0 ]; then
 fi
 log_message "Esquema dos bancos de dados inicializado."
 
-# 7. Lançar os Nós do Middleware em segundo plano
-log_message "Iniciando nós do middleware em segundo plano..."
-rm -f "$PID_FILE" # Limpa o arquivo de PIDs anterior
-mkdir -p "$LOG_DIR" # Cria diretório de logs se não existir
+# 7. Detectar IP local e iniciar apenas o nó correspondente
+log_message "Detectando IP local da máquina..."
 
+# Ler IP do arquivo .env se existir
+if [ -f ".env" ]; then
+    source .env
+    log_message "IP lido do arquivo .env: $MY_IP"
+fi
+
+# Se MY_IP ainda está vazio, tentar detectar automaticamente
+if [ -z "$MY_IP" ]; then
+    log_message "Tentando detectar IP automaticamente..."
+    MY_IP=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || echo "")
+fi
+
+log_message "IP local detectado: $MY_IP"
+
+# Limpar MY_IP de espaços/CR/LF
+MY_IP=$(echo "$MY_IP" | tr -d '\r\n ')
+
+# Encontrar qual nó deve rodar nesta máquina
+MY_NODE_ID=-1
 for i in "${!IPS[@]}"; do
-    log_message "Iniciando nó $i..."
-    # Redireciona a saída para um arquivo de log e executa em background
-    "$PYTHON_EXEC" node.py "$i" > "$LOG_DIR/node$i.log" 2>&1 &
-    PID=$!
-    echo "$PID" >> "$PID_FILE"
-    log_message "Nó $i iniciado com PID $PID. Logs em $LOG_DIR/node$i.log"
+    IP_CLEAN=$(echo "${IPS[$i]}" | tr -d '\r\n ')
+    if [ "$IP_CLEAN" == "$MY_IP" ]; then
+        MY_NODE_ID=$i
+        break
+    fi
 done
 
-log_message "Todos os nós do middleware foram iniciados em segundo plano."
+if [ $MY_NODE_ID -eq -1 ]; then
+    log_message "AVISO: IP local ($MY_IP) não encontrado em ips.txt"
+    log_message "IPs no arquivo: ${IPS[@]}"
+    log_message "Iniciando todos os nós localmente para teste..."
+    # Modo de teste local - iniciar todos os nós
+    CONFIG_FILE="config.local.json"
+    for i in "${!IPS[@]}"; do
+        log_message "Iniciando nó $i com $CONFIG_FILE (modo teste)..."
+        ("$PYTHON_EXEC" node.py "$i" "$CONFIG_FILE" > "$LOG_DIR/node$i.log" 2>&1 &)
+        PID=$!
+        echo "$PID" >> "$PID_FILE"
+        log_message "Nó $i iniciado com PID $PID. Logs em $LOG_DIR/node$i.log"
+    done
+else
+    # Modo distribuído - iniciar apenas o nó desta máquina
+    log_message "Iniciando apenas o nó $MY_NODE_ID (correspondente a $MY_IP)..."
+    CONFIG_FILE="config.json"
+    
+    rm -f "$PID_FILE"
+    mkdir -p "$LOG_DIR"
+    
+    ("$PYTHON_EXEC" node.py "$MY_NODE_ID" "$CONFIG_FILE" > "$LOG_DIR/node$MY_NODE_ID.log" 2>&1 &)
+    PID=$!
+    echo "$PID" >> "$PID_FILE"
+    log_message "Nó $MY_NODE_ID iniciado com PID $PID. Logs em $LOG_DIR/node$MY_NODE_ID.log"
+fi
+
+log_message "Nós do middleware iniciados em segundo plano."
 log_message "Para interagir com o ambiente, use 'python client.py'."
 log_message "Para parar o ambiente, execute './parar_ambiente.sh'."
 log_message "Implantação do ambiente concluída com sucesso!"

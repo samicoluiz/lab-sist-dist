@@ -1,6 +1,5 @@
 import mysql.connector
 import json
-
 import time
 
 def inicializar():
@@ -12,13 +11,17 @@ def inicializar():
         return
     
     for n in nos:
+        # Sempre usa localhost quando inicializando localmente
+        # Em ambiente multi-máquina, cada máquina roda init_db.py apenas para seu próprio banco
+        host = '127.0.0.1'
+        
         sucesso = False
         tentativas = 15
         while tentativas > 0 and not sucesso:
             conn = None
             try:
                 conn = mysql.connector.connect(
-                    host=n['ip'],
+                    host=host,
                     user='root',
                     password='root',
                     database='bd-dist',

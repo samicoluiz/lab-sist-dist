@@ -45,11 +45,12 @@ def encontrar_coordenador(nos):
     return None
 
 def principal():
+    caminho_config = sys.argv[1] if len(sys.argv) > 1 else 'config.json'
     try:
-        with open('config.json', 'r') as f:
+        with open(caminho_config, 'r') as f:
             nos = json.load(f)['nodes']
     except FileNotFoundError:
-        print("config.json não encontrado.")
+        print(f"{caminho_config} não encontrado.")
         return
 
     print("--- Cliente de Banco de Dados Distribuído ---")

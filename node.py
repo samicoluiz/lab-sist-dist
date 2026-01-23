@@ -17,7 +17,7 @@ class No:
         
         # Configuração do Banco de Dados
         self.config_bd = {
-            'host': self.eu['ip'],
+            'host': '127.0.0.1',  # Sempre usar localhost para DB
             'user': 'root',
             'password': 'root',
             'database': 'bd-dist',
@@ -209,6 +209,7 @@ class No:
 if __name__ == "__main__":
     if len(sys.argv) < 2: sys.exit(1)
     id_no_args = int(sys.argv[1])
+    caminho_config = sys.argv[2] if len(sys.argv) > 2 else 'config.json'
     
     dir_logs = "logs"
     if not os.path.exists(dir_logs): os.makedirs(dir_logs)
@@ -218,7 +219,7 @@ if __name__ == "__main__":
     sys.stdout = fp_log
     sys.stderr = fp_log
 
-    no = No(id_no_args)
+    no = No(id_no_args, caminho_config)
     try:
         while True: time.sleep(1)
     except KeyboardInterrupt:
