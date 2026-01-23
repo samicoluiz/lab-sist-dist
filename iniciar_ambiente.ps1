@@ -147,22 +147,83 @@ if ($LASTEXITCODE -ne 0) {
 }
 Log-Message "Esquema do banco de dados inicializado."
 
-# 7. Lançar os Nós do Middleware em segundo plano
-Log-Message "Iniciando os nós do middleware em segundo plano..."
-Remove-Item $PidFile -ErrorAction SilentlyContinue # Limpar arquivo de PID anterior
-if (-not (Test-Path $LogDir -PathType Container)) {
-    New-Item -ItemType Directory -Path $LogDir | Out-Null # Criar diretório de logs se não existir
+# 7. Detectar IP local e iniciar apenas o nó correspondente
+Log-Message "Detectando IP local da máquina..."
+
+# Ler IP do arquivo .env se existir
+$MY_IP = $null
+if (Test-Path ".env") {
+    Get-Content ".env" | ForEach-Object {
+        if ($_ -match '^MY_IP=(.+)$') {
+            $MY_IP = $Matches[1].Trim()
+            Log-Message "IP lido do arquivo .env: $MY_IP"
+        }
+    }
 }
 
+# Se MY_IP ainda está vazio, tentar detectar automaticamente
+if ([string]::IsNullOrEmpty($MY_IP)) {
+    Log-Message "Tentando detectar IP automaticamente..."
+    $MY_IP = (Get-NetIPAddress -AddressFamily IPv4 | 
+              Where-Object {$_.InterfaceAlias -notlike '*Loopback*' -and 
+                           $_.InterfaceAlias -notlike '*WSL*' -and 
+                           $_.IPAddress -like '192.168.*'}).IPAddress | 
+              Select-Object -First 1
+}
+
+Log-Message "IP local detectado: $MY_IP"
+
+# Encontrar qual nó deve rodar nesta máquina
+$MY_NODE_ID = -1
 for ($i = 0; $i -lt $IPs.Count; $i++) {
-    Log-Message "Iniciando o nó $i..."
-    # node.py agora lida com seu próprio log.
-    $Process = Start-Process -FilePath $PythonExec -ArgumentList "node.py $i" -NoNewWindow -PassThru
-    $Process.Id | Out-File -Append -FilePath $PidFile
-    Log-Message "Nó $i iniciado com o PID $($Process.Id). Os logs estão em $LogDir\node$i.log"
+    if ($IPs[$i].Trim() -eq $MY_IP) {
+        $MY_NODE_ID = $i
+        break
+    }
 }
 
-Log-Message "Todos os nós do middleware foram iniciados em segundo plano."
+Remove-Item $PidFile -ErrorAction SilentlyContinue
+if (-not (Test-Path $LogDir -PathType Container)) {
+    New-Item -ItemType Directory -Path $LogDir | Out-Null
+}
+
+if ($MY_NODE_ID -eq -1) {
+    Log-Message "AVISO: IP local ($MY_IP) não encontrado em ips.txt"
+    Log-Message "IPs no arquivo: $($IPs -join ', ')"
+    Log-Message "Iniciando todos os nós localmente para teste..."
+    
+    # Modo de teste local - iniciar todos os nós
+    $ConfigFile = "config.local.json"
+    
+    # Criar config.local.json se não existir
+    if (-not (Test-Path $ConfigFile)) {
+        $localConfig = @{
+            nodes = @(
+                @{id=0; ip="127.0.0.1"; port=5000; db_port=3309},
+                @{id=1; ip="127.0.0.1"; port=5001; db_port=3307},
+                @{id=2; ip="127.0.0.1"; port=5002; db_port=3308}
+            )
+        }
+        $localConfig | ConvertTo-Json -Depth 10 | Set-Content $ConfigFile
+    }
+    
+    for ($i = 0; $i -lt $IPs.Count; $i++) {
+        Log-Message "Iniciando nó $i com $ConfigFile (modo teste)..."
+        $Process = Start-Process -FilePath $PythonExec -ArgumentList "node.py $i $ConfigFile" -NoNewWindow -PassThru
+        $Process.Id | Out-File -Append -FilePath $PidFile
+        Log-Message "Nó $i iniciado com PID $($Process.Id). Logs em $LogDir\node$i.log"
+    }
+} else {
+    # Modo distribuído - iniciar apenas o nó desta máquina
+    Log-Message "Iniciando apenas o nó $MY_NODE_ID (correspondente a $MY_IP)..."
+    $ConfigFile = "config.json"
+    
+    $Process = Start-Process -FilePath $PythonExec -ArgumentList "node.py $MY_NODE_ID $ConfigFile" -NoNewWindow -PassThru
+    $Process.Id | Out-File -Append -FilePath $PidFile
+    Log-Message "Nó $MY_NODE_ID iniciado com PID $($Process.Id). Logs em $LogDir\node$MY_NODE_ID.log"
+}
+
+Log-Message "Nós do middleware iniciados em segundo plano."
 Log-Message "Para interagir com o ambiente, use 'python client.py'."
 Log-Message "Para parar o ambiente, execute '.\parar_ambiente.ps1'."
 Log-Message "Implantação do ambiente concluída com sucesso!"
