@@ -65,7 +65,12 @@ class No:
                 print(f"[Nó {self.id_no}] Erro ao enviar {msg.get('type')} para Nó {no_alvo['id']} ({no_alvo['ip']}): {e}")
 
     def realizar_broadcast(self, msg):
+        if msg.get('type') != 'HEARTBEAT': # Evita spam de heartbeat
+            print(f"[Nó {self.id_no}] >>> INICIANDO BROADCAST: {msg.get('type')} <<<", flush=True)
+        
         for no in self.outros_nos:
+            if msg.get('type') != 'HEARTBEAT':
+                print(f"[Nó {self.id_no}] -> Enviando para Nó {no['id']} ({no['ip']}:{no['port']})", flush=True)
             self.enviar_msg(no, msg)
 
     def iniciar_servicos(self):
@@ -231,23 +236,13 @@ if __name__ == "__main__":
     id_no_args = int(sys.argv[1])
     caminho_config = sys.argv[2] if len(sys.argv) > 2 else 'config.json'
     
-    dir_logs = "logs"
-    if not os.path.exists(dir_logs): os.makedirs(dir_logs)
-    # Garante fechamento correto do arquivo de log ao encerrar
-    arquivo_log_path = os.path.join(dir_logs, f"node{id_no_args}.log")
-    # Open in unbuffered binary mode first
-    fp_log = open(arquivo_log_path, 'wb', buffering=0)
-    # Use unbuffered stdout/stderr
-    import io
-    sys.stdout = io.TextIOWrapper(fp_log, encoding='utf-8', line_buffering=True, write_through=True)
-    sys.stderr = sys.stdout
-
+    # Configuração de logs removida para exibir output no console
+    # dir_logs = "logs"
+    # ... (código de log removido)
+    
     no = No(id_no_args, caminho_config)
     try:
         while True: time.sleep(1)
     except KeyboardInterrupt:
         no.parar()
-    finally:
-        sys.stdout.flush()
-        sys.stderr.flush()
-        fp_log.close()
+

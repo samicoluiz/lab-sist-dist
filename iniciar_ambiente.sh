@@ -208,7 +208,8 @@ if [ $MY_NODE_ID -eq -1 ]; then
     CONFIG_FILE="config.local.json"
     for i in "${!IPS[@]}"; do
         log_message "Iniciando nó $i com $CONFIG_FILE (modo teste)..."
-        ("$PYTHON_EXEC" node.py "$i" "$CONFIG_FILE" > "$LOG_DIR/node$i.log" 2>&1 &)
+        # node.py lida com seu próprio log
+        nohup "$PYTHON_EXEC" node.py "$i" "$CONFIG_FILE" >/dev/null 2>&1 &
         PID=$!
         echo "$PID" >> "$PID_FILE"
         log_message "Nó $i iniciado com PID $PID. Logs em $LOG_DIR/node$i.log"
@@ -221,7 +222,8 @@ else
     rm -f "$PID_FILE"
     mkdir -p "$LOG_DIR"
     
-    ("$PYTHON_EXEC" node.py "$MY_NODE_ID" "$CONFIG_FILE" > "$LOG_DIR/node$MY_NODE_ID.log" 2>&1 &)
+    # node.py lida com seu próprio log
+    nohup "$PYTHON_EXEC" node.py "$MY_NODE_ID" "$CONFIG_FILE" >/dev/null 2>&1 &
     PID=$!
     echo "$PID" >> "$PID_FILE"
     log_message "Nó $MY_NODE_ID iniciado com PID $PID. Logs em $LOG_DIR/node$MY_NODE_ID.log"

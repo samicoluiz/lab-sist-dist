@@ -33,8 +33,13 @@ if [ -f "$PID_FILE" ]; then
     rm -f "$PID_FILE"
     log_message "Processos dos nós do middleware parados."
 else
-    log_message "Arquivo de PIDs '$PID_FILE' não encontrado. Nenhum nó do middleware para parar via PID."
+    log_message "Arquivo de PIDs '$PID_FILE' não encontrado."
 fi
+
+# Fallback: kill any node.py processes
+log_message "Assegurando que todos os processos 'node.py' sejam encerrados..."
+pkill -f "node.py" >/dev/null 2>&1
+
 
 # 2. Parar os Bancos de Dados Docker
 log_message "Parando e removendo contêineres MySQL com Docker Compose..."
